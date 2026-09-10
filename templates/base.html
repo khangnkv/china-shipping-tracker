@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipping Tracker Admin</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+{% from "_macros.html" import icon %}
+<body class="min-h-screen bg-slate-50 text-slate-900">
+<header class="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+    <a href="{{ url_for('orders_page') }}" class="flex items-center gap-2.5">
+      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900">
+        {{ icon('package', 'h-5 w-5 text-teal-400') }}
+      </span>
+      <span>
+        <span class="block text-base font-bold leading-none text-slate-900">Shipping Tracker</span>
+        <span class="mt-0.5 block text-xs text-slate-400">Agent Dashboard</span>
+      </span>
+    </a>
+    <nav class="flex items-center gap-1 sm:gap-2">
+      <a href="{{ url_for('orders_page') }}" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Orders</a>
+      <a href="{{ url_for('match_page') }}" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Paste LOT list</a>
+      <a href="{{ url_for('agencies_page') }}" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Agencies</a>
+      <a href="{{ url_for('stats') }}" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Stats</a>
+      <a href="{{ url_for('line_status') }}" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">LINE</a>
+      <a href="{{ url_for('logout') }}" class="btn ml-1">{{ icon('log-out') }}<span class="hidden sm:inline">Log out</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for m in messages %}
+          <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{{ m }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

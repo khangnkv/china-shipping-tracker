@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block content %}
+{# Chart colors (validated dataviz palette, light mode) read by Chart.js via getComputedStyle. #}
+<style>
+  .viz-root { --surface-1:#fcfcfb; --text-secondary:#52514e; --muted:#898781; --grid:#e1e0d9; --series-1:#2a78d6; --series-2:#1baf7a; }
+</style>
+
+<div class="viz-root">
+<h2 class="mb-4 text-lg font-bold text-slate-900">Analytics</h2>
+
+<div class="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Total profit</p><p class="mt-1 text-2xl font-bold text-slate-900">฿{{ "{:,.0f}".format(total_profit) }}</p></div>
+  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Total revenue</p><p class="mt-1 text-2xl font-bold text-slate-900">฿{{ "{:,.0f}".format(total_revenue) }}</p></div>
+  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Avg margin</p><p class="mt-1 text-2xl font-bold text-slate-900">{{ "%.1f%%"|format(avg_margin) if avg_margin is not none else "—" }}</p></div>
+  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Avg transit (days)</p><p class="mt-1 text-2xl font-bold text-slate-900">{{ "%.1f"|format(avg_transit) if avg_transit is not none else "—" }}</p></div>
+</div>
+
+{# Agency comparison #}
+<div class="card mb-5 p-5">
+  <div class="mb-3 flex items-center justify-between">
+    <h3 class="text-sm font-semibold text-slate-900">Agency comparison <span class="font-normal text-slate-400">(fastest first)</span></h3>
+    {% if latest_agency %}<span class="text-xs text-slate-400">Latest used: <span class="font-medium text-slate-600">{{ latest_agency }}</span></span>{% endif %}
+  </div>
+  {% if agencies %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+          <th class="py-2 pr-4">Agency</th><th class="py-2 pr-4 text-right">Orders</th>
+          <th class="py-2 pr-4 text-right">Avg days</th><th class="py-2 pr-4 text-right">China</th>
+          <th class="py-2 pr-4 text-right">Cross-border</th><th class="py-2 pr-4 text-right">Last mile</th>
+          <th class="py-2 pr-4 text-right">Profit</th><th class="py-2 pr-4 text-right">Margin</th>
+          <th class="py-2 text-right">฿/day</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for a in agencies %}
+        <tr>
+          <td class="py-2 pr-4 font-medium text-slate-900">{{ a.name }}</td>
+          <td class="py-2 pr-4 text-right">{{ a.count }}</td>
+          <td class="py-2 pr-4 text-right font-medium">{{ "%.1f"|format(a.avg_total) if a.avg_total is not none else "—" }}</td>
+          <td class="py-2 pr-4 text-right">{{ "%.1f"|format(a.avg_china) if a.avg_china is not none else "—" }}</td>
+          <td class="py-2 pr-4 text-right">{{ "%.1f"|format(a.avg_cross) if a.avg_cross is not none else "—" }}</td>
+          <td class="py-2 pr-4 text-right">{{ "%.1f"|format(a.avg_last) if a.avg_last is not none else "—" }}</td>
+          <td class="py-2 pr-4 text-right">฿{{ "{:,.0f}".format(a.profit) }}</td>
+          <td class="py-2 pr-4 text-right">{{ "%.1f%%"|format(a.avg_margin) if a.avg_margin is not none else "—" }}</td>
+          <td class="py-2 text-right">{{ "%.0f"|format(a.efficiency) if a.efficiency is not none else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-4"><canvas id="agencyChart"></canvas></div>
+  {% else %}
+  <p class="py-6 text-center text-sm text-slate-400">No agency data yet — assign agencies to orders to compare them.</p>
+  {% endif %}
+</div>
+
+<div class="grid gap-5 lg:grid-cols-2">
+  <div class="card p-5">
+    <h3 class="mb-3 text-sm font-semibold text-slate-900">Orders by status</h3>
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th class="py-2">Status</th><th class="py-2 text-right">Count</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for s, c in status_counts.items() %}<tr><td class="py-2 text-slate-700">{{ CUSTOMER_STATUS.get(s, s) }}</td><td class="py-2 text-right font-medium">{{ c }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card p-5">
+    <h3 class="mb-3 text-sm font-semibold text-slate-900">By mode</h3>
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th class="py-2">Mode</th><th class="py-2 text-right">Count</th><th class="py-2 text-right">Profit</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for m, vv in by_mode.items() %}<tr><td class="py-2 text-slate-700">{{ m }}</td><td class="py-2 text-right font-medium">{{ vv.count }}</td><td class="py-2 text-right font-medium">฿{{ "{:,.0f}".format(vv.profit) }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card p-5">
+    <h3 class="mb-3 text-sm font-semibold text-slate-900">Monthly profit</h3>
+    <canvas id="monthlyChart"></canvas>
+  </div>
+  <div class="card p-5">
+    <h3 class="mb-3 text-sm font-semibold text-slate-900">Orders by mode</h3>
+    <canvas id="modeChart"></canvas>
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const css = getComputedStyle(document.querySelector('.viz-root'));
+  const v = n => css.getPropertyValue(n).trim();
+  Chart.defaults.color = v('--text-secondary');
+  Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: {{ monthly.keys()|list|tojson }},
+      datasets: [{ label: 'Profit (฿)', data: {{ monthly.values()|list|tojson }},
+        backgroundColor: v('--series-1'), borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: v('--muted') } },
+        y: { grid: { color: v('--grid') }, ticks: { color: v('--muted') } }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('modeChart'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ by_mode.keys()|list|tojson }},
+      datasets: [{ data: {{ (by_mode.values()|map(attribute='count')|list)|tojson }},
+        backgroundColor: [v('--series-1'), v('--series-2')],
+        borderColor: v('--surface-1'), borderWidth: 2 }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+
+  {% if agencies %}
+  const agCanvas = document.getElementById('agencyChart');
+  if (agCanvas) new Chart(agCanvas, {
+    type: 'bar',
+    data: {
+      labels: {{ agencies|map(attribute='name')|list|tojson }},
+      datasets: [{ label: 'Avg transit days', data: {{ agencies|map(attribute='avg_total')|list|tojson }},
+        backgroundColor: v('--series-2'), borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: v('--grid') }, ticks: { color: v('--muted') } },
+        y: { grid: { display: false }, ticks: { color: v('--muted') } }
+      }
+    }
+  });
+  {% endif %}
+</script>
+{% endblock %}

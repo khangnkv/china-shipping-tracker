@@ -1,0 +1,70 @@
+{# ---- Status badge ---------------------------------------------------------
+   Full Tailwind class strings per status so the CLI content scanner keeps them
+   (never build class names by concatenation). Label comes from CUSTOMER_STATUS. #}
+{% set STATUS_CLASSES = {
+  "ordered":          "bg-slate-100 text-slate-700 ring-slate-200",
+  "to_china_wh":      "bg-blue-50 text-blue-700 ring-blue-200",
+  "at_china_wh":      "bg-cyan-50 text-cyan-700 ring-cyan-200",
+  "cross_border":     "bg-amber-50 text-amber-700 ring-amber-200",
+  "th_customs":       "bg-orange-50 text-orange-700 ring-orange-200",
+  "at_th_wh":         "bg-teal-50 text-teal-700 ring-teal-200",
+  "out_for_delivery": "bg-violet-50 text-violet-700 ring-violet-200",
+  "delivered":        "bg-green-50 text-green-700 ring-green-200",
+} %}
+{% set STATUS_DOTS = {
+  "ordered":          "bg-slate-400",
+  "to_china_wh":      "bg-blue-500",
+  "at_china_wh":      "bg-cyan-500",
+  "cross_border":     "bg-amber-500",
+  "th_customs":       "bg-orange-500",
+  "at_th_wh":         "bg-teal-500",
+  "out_for_delivery": "bg-violet-500",
+  "delivered":        "bg-green-500",
+} %}
+
+{% macro status_badge(status, size="md") -%}
+  {% set pad = "px-2 py-0.5 text-xs" if size == "sm" else "px-2.5 py-1 text-sm" %}
+  <span class="inline-flex items-center gap-1.5 rounded-full font-medium ring-1 {{ STATUS_CLASSES.get(status, 'bg-slate-100 text-slate-700 ring-slate-200') }} {{ pad }}">
+    <span class="h-1.5 w-1.5 rounded-full {{ STATUS_DOTS.get(status, 'bg-slate-400') }}"></span>
+    {{ CUSTOMER_STATUS.get(status, status) }}
+  </span>
+{%- endmacro %}
+
+{# ---- Inline lucide icons (MIT). Usage: {{ icon('package', 'h-5 w-5 text-teal-400') }} #}
+{% macro icon(name, cls="h-4 w-4") -%}
+<svg xmlns="http://www.w3.org/2000/svg" class="{{ cls }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == "package" -%}
+<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+{%- elif name == "search" -%}
+<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+{%- elif name == "plus" -%}
+<path d="M5 12h14"/><path d="M12 5v14"/>
+{%- elif name == "log-out" -%}
+<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
+{%- elif name == "chevron-right" -%}
+<path d="m9 18 6-6-6-6"/>
+{%- elif name == "truck" -%}
+<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>
+{%- elif name == "check-circle" -%}
+<path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/>
+{%- elif name == "trending-up" -%}
+<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+{%- elif name == "map-pin" -%}
+<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>
+{%- elif name == "clock" -%}
+<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+{%- elif name == "message-circle" -%}
+<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
+{%- elif name == "eye" -%}
+<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>
+{%- elif name == "eye-off" -%}
+<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>
+{%- elif name == "alert-circle" -%}
+<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>
+{%- elif name == "clipboard-list" -%}
+<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
+{%- elif name == "bar-chart" -%}
+<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}

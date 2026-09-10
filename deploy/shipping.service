@@ -1,0 +1,19 @@
+[Unit]
+Description=China Shipping Tracker (Flask/gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=shipping
+Group=shipping
+WorkingDirectory=/opt/shipping
+EnvironmentFile=/opt/shipping/.env
+ExecStart=/opt/shipping/venv/bin/gunicorn -c /opt/shipping/deploy/gunicorn.conf.py app:app
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

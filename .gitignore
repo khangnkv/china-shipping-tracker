@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+tracker.db
+tracker.db-wal
+tracker.db-shm
+backups/
+venv/
+.venv/
+.pytest_cache/
+*.egg-info/
+static/uploads/
+.claude/settings.local.json

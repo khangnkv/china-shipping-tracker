@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block content %}
+<h2 class="mb-4 text-lg font-bold text-slate-900">LINE diagnostics</h2>
+
+<div class="card mb-5 p-5">
+  <dl class="grid gap-3 sm:grid-cols-2">
+    <div><dt class="text-xs text-slate-400">Access token</dt><dd class="text-sm font-medium {{ 'text-green-600' if diag.token_set else 'text-red-600' }}">{{ 'Set' if diag.token_set else 'MISSING' }}</dd></div>
+    <div><dt class="text-xs text-slate-400">Channel secret</dt><dd class="text-sm font-medium {{ 'text-green-600' if diag.secret_set else 'text-red-600' }}">{{ 'Set' if diag.secret_set else 'MISSING' }}</dd></div>
+    <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Public base URL (QR + /track target)</dt><dd class="text-sm font-medium text-slate-700 break-all">{{ diag.public_base_url }}</dd></div>
+    <div><dt class="text-xs text-slate-400">Last inbound webhook</dt><dd class="text-sm font-medium text-slate-700">{{ diag.last_webhook_at }}</dd></div>
+    <div><dt class="text-xs text-slate-400">Linked customers</dt><dd class="text-sm font-medium text-slate-700">{{ diag.linked_count }}</dd></div>
+  </dl>
+</div>
+
+<div class="card p-5">
+  <h3 class="mb-3 text-sm font-semibold text-slate-900">Send a test push</h3>
+  {% if linked %}
+  <form method="post" action="{{ url_for('line_test') }}" class="flex flex-wrap items-end gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label class="label">Linked customer</label>
+      <select class="input" name="customer_id">
+        {% for c in linked %}<option value="{{ c.id }}">{{ c.name }} ({{ c.link_code }})</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-primary">{{ icon('message-circle') }} Send test message</button>
+  </form>
+  {% else %}
+  <p class="text-sm text-slate-400">No linked customers yet — have someone add the OA and send their tracking code first.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,3 @@
+# Normalize to LF so the Linux VPS gets correct line endings for
+# shell/systemd/python files regardless of the OS that committed them.
+* text=auto eol=lf

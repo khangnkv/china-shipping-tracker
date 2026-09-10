@@ -1,0 +1,9 @@
+# Replace yourdomain.com with your real domain. Caddy auto-issues & renews TLS.
+yourdomain.com {
+	reverse_proxy 127.0.0.1:5000
+	encode gzip
+	# LINE webhooks + uploads: allow up to ~6 MB request bodies.
+	request_body {
+		max_size 6MB
+	}
+}

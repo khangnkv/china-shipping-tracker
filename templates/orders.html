@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, status_badge %}
+{% block content %}
+
+{# KPI strip #}
+<div class="mb-6 grid grid-cols-3 gap-3 sm:gap-4">
+  <div class="card p-3 sm:p-4">
+    <div class="flex items-center gap-2">
+      <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">{{ icon('truck') }}</span>
+      <span class="text-xs font-medium text-slate-500">In transit</span>
+    </div>
+    <p class="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">{{ kpis.in_transit }}</p>
+  </div>
+  <div class="card p-3 sm:p-4">
+    <div class="flex items-center gap-2">
+      <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-green-600">{{ icon('check-circle') }}</span>
+      <span class="text-xs font-medium text-slate-500">Shipped (month)</span>
+    </div>
+    <p class="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">{{ kpis.shipped_month }}</p>
+  </div>
+  <div class="card p-3 sm:p-4">
+    <div class="flex items-center gap-2">
+      <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 text-teal-600">{{ icon('trending-up') }}</span>
+      <span class="text-xs font-medium text-slate-500">Profit (month)</span>
+    </div>
+    <p class="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">฿{{ "{:,.0f}".format(kpis.profit_month) }}</p>
+  </div>
+</div>
+
+{# New order #}
+<details class="card mb-6 p-4">
+  <summary class="cursor-pointer list-none">
+    <span class="btn-primary">{{ icon('plus') }} Add order</span>
+  </summary>
+  <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <label class="label">Paste customer info <span class="font-normal text-slate-400">(name, phone, address — any format)</span></label>
+    <textarea id="blob" class="input" rows="3" placeholder="คุณสมชาย ใจดี 081-234-5678 123/45 ถ.สุขุมวิท ..."></textarea>
+    <button type="button" id="splitBtn" class="btn mt-2" onclick="splitCustomer()">Split into fields</button>
+    <span id="splitMsg" class="ml-2 text-xs text-slate-400"></span>
+  </div>
+
+  <form method="post" action="{{ url_for('new_order') }}" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label class="label">Customer name</label><input id="f_name" class="input" name="name" placeholder="Customer name" required></div>
+    <div><label class="label">Phone</label><input id="f_phone" class="input" name="phone" placeholder="Phone"></div>
+    <div><label class="label">Agency</label>
+      <select class="input" name="agency_id">
+        <option value="">— none —</option>
+        {% for a in agencies %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="sm:col-span-2 lg:col-span-3"><label class="label">Address</label><input id="f_address" class="input" name="address" placeholder="Delivery address"></div>
+    <div>
+      <label class="label">Mode</label>
+      <select class="input" name="mode">
+        <option value="รถ" selected>รถ (truck)</option>
+        <option value="เรือ">เรือ (ship)</option>
+      </select>
+    </div>
+    <div><label class="label">LOT number <span class="font-normal text-slate-400">(internal)</span></label><input class="input" name="lot" placeholder="e.g. 11092" required type="number"></div>
+    <div class="flex items-end"><button type="submit" class="btn-primary">{{ icon('plus') }} Create order</button></div>
+  </form>
+</details>
+
+{# Toolbar #}
+<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+  <div class="relative max-w-xs flex-1">
+    <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{{ icon('search') }}</span>
+    <input id="q" class="input pl-9" placeholder="Search code, name, phone, item…" oninput="filterRows()">
+  </div>
+  <select id="statusFilter" class="input sm:max-w-[200px]" onchange="filterRows()">
+    <option value="all">All statuses</option>
+    {% for s in STATUS_ORDER %}<option value="{{ s }}">{{ CUSTOMER_STATUS[s] }}</option>{% endfor %}
+  </select>
+</div>
+
+{# Table #}
+<div class="card overflow-hidden">
+  {% if orders %}
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-slate-200 bg-slate-50/50 text-left">
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Code</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Customer</th>
+          <th class="hidden px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 md:table-cell">Item</th>
+          <th class="hidden px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:table-cell">Profit</th>
+          <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+          <th class="hidden px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:table-cell">LINE</th>
+          <th class="px-4 py-2.5"></th>
+        </tr>
+      </thead>
+      <tbody id="rows" class="divide-y divide-slate-100">
+        {% for o in orders %}
+        {% set p = order_profit(o) %}
+        <tr class="group cursor-pointer transition hover:bg-slate-50/50"
+            data-status="{{ o.status }}"
+            data-search="{{ (o.link_code ~ ' ' ~ o.customer_name ~ ' ' ~ (o.customer_phone or '') ~ ' ' ~ (o.item_desc_en or '') ~ ' ' ~ (o.item_title_zh or ''))|lower }}"
+            onclick="location.href='{{ url_for('order_detail', order_id=o.id) }}'">
+          <td class="px-4 py-3"><span class="font-mono text-sm font-medium text-slate-900">{{ o.link_code }}</span></td>
+          <td class="px-4 py-3">
+            <div class="text-sm font-medium text-slate-900">{{ o.customer_name }}</div>
+            {% if o.customer_phone %}<div class="text-xs text-slate-400">{{ o.customer_phone }}</div>{% endif %}
+          </td>
+          <td class="hidden px-4 py-3 md:table-cell">
+            <div class="max-w-[180px] truncate text-sm text-slate-600">{{ o.item_desc_en or o.item_title_zh or "—" }}</div>
+          </td>
+          <td class="hidden px-4 py-3 lg:table-cell">
+            <span class="text-sm font-medium {{ 'text-slate-300' if not o.payment_amount else ('text-green-600' if p.profit >= 0 else 'text-red-600') }}">
+              {{ "฿%s"|format("{:,.0f}".format(p.profit)) if o.payment_amount else "—" }}
+            </span>
+          </td>
+          <td class="px-4 py-3">{{ status_badge(o.status, "sm") }}</td>
+          <td class="hidden px-4 py-3 text-sm sm:table-cell">
+            {% if o.line_user_id %}<span class="text-green-600">Linked</span>{% else %}<span class="text-slate-400">No</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500">{{ icon('chevron-right') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div id="empty" class="hidden py-16 text-center">
+    <div class="mx-auto mb-3 flex justify-center text-slate-300">{{ icon('package', 'h-10 w-10') }}</div>
+    <p class="text-sm text-slate-400">No parcels match your filters</p>
+  </div>
+  {% else %}
+  <div class="py-16 text-center">
+    <div class="mx-auto mb-3 flex justify-center text-slate-300">{{ icon('package', 'h-10 w-10') }}</div>
+    <p class="text-sm text-slate-400">No orders yet — add one above.</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  async function splitCustomer() {
+    const blob = document.getElementById('blob').value.trim();
+    const msg = document.getElementById('splitMsg');
+    const btn = document.getElementById('splitBtn');
+    if (!blob) { msg.textContent = 'Paste something first.'; return; }
+    btn.disabled = true; msg.textContent = 'Splitting…';
+    try {
+      const body = new URLSearchParams({ text: blob, csrf_token: '{{ csrf_token() }}' });
+      const r = await fetch('{{ url_for("parse_customer_route") }}', { method: 'POST', body });
+      const d = await r.json();
+      if (d.ok) {
+        if (d.name) document.getElementById('f_name').value = d.name;
+        if (d.phone) document.getElementById('f_phone').value = d.phone;
+        if (d.address) document.getElementById('f_address').value = d.address;
+        msg.textContent = 'Filled — please review.';
+      } else {
+        msg.textContent = 'Auto-split unavailable (no API key) — fill manually.';
+      }
+    } catch (e) {
+      msg.textContent = 'Split failed — fill manually.';
+    }
+    btn.disabled = false;
+  }
+
+  function filterRows() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    const sf = document.getElementById('statusFilter').value;
+    let visible = 0;
+    document.querySelectorAll('#rows tr').forEach(function (tr) {
+      const okStatus = sf === 'all' || tr.dataset.status === sf;
+      const okSearch = !q || tr.dataset.search.includes(q);
+      const show = okStatus && okSearch;
+      tr.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const empty = document.getElementById('empty');
+    if (empty) empty.classList.toggle('hidden', visible !== 0);
+  }
+</script>
+{% endblock %}

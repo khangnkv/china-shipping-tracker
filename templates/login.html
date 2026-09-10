@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin login</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+{% from "_macros.html" import icon %}
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/40 to-teal-50/30 text-slate-900">
+<div class="flex min-h-screen items-center justify-center px-4">
+  <div class="w-full max-w-sm">
+    <div class="mb-8 text-center">
+      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 shadow-lg shadow-slate-900/20">
+        {{ icon('package', 'h-8 w-8 text-teal-400') }}
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900">Shipping Tracker</h1>
+      <p class="mt-1 text-sm text-slate-500">Sign in to manage your orders</p>
+    </div>
+
+    <form method="post" class="card p-6 shadow-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          {% for m in messages %}
+          <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ m }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <label class="label">Password</label>
+      <div class="relative">
+        <input id="pw" type="password" name="password" required autocomplete="current-password"
+               class="input pr-10" placeholder="••••••••">
+        <button type="button" onclick="togglePw()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <span id="eye">{{ icon('eye') }}</span><span id="eyeoff" class="hidden">{{ icon('eye-off') }}</span>
+        </button>
+      </div>
+
+      <button type="submit" class="btn-primary mt-6 w-full justify-center">Sign in</button>
+    </form>
+  </div>
+</div>
+<script>
+  function togglePw() {
+    const pw = document.getElementById('pw');
+    const showing = pw.type === 'text';
+    pw.type = showing ? 'password' : 'text';
+    document.getElementById('eye').classList.toggle('hidden', !showing);
+    document.getElementById('eyeoff').classList.toggle('hidden', showing);
+  }
+</script>
+</body>
+</html>

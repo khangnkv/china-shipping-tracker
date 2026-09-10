@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block content %}
+<h2 class="mb-4 text-lg font-bold text-slate-900">Agencies</h2>
+
+<form method="post" class="card mb-5 flex flex-wrap items-end gap-3 p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="add">
+  <div class="flex-1"><label class="label">New agency name</label><input class="input" name="name" placeholder="e.g. Kerry-CN, EMS-Line…" required></div>
+  <button type="submit" class="btn-primary">{{ icon('plus') }} Add agency</button>
+</form>
+
+<div class="card overflow-hidden">
+  {% if agencies %}
+  <table class="w-full">
+    <thead>
+      <tr class="border-b border-slate-200 bg-slate-50/50 text-left">
+        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Agency</th>
+        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+        <th class="px-4 py-2.5"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for a in agencies %}
+      <tr>
+        <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ a.name }}</td>
+        <td class="px-4 py-3 text-sm">
+          {% if a.active %}<span class="text-green-600">Active</span>{% else %}<span class="text-slate-400">Inactive</span>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <form method="post" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="toggle">
+            <input type="hidden" name="agency_id" value="{{ a.id }}">
+            <button type="submit" class="btn">{{ 'Deactivate' if a.active else 'Activate' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="py-10 text-center text-sm text-slate-400">No agencies yet — add one above.</p>
+  {% endif %}
+</div>
+{% endblock %}
