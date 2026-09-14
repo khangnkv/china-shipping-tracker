@@ -67,7 +67,7 @@ transit → Thailand customs → At Thailand warehouse → Out for delivery → 
 - **Customer tracking number** = the generated `link_code`, shown on order create
   and detail. Give it to the customer; they can also type it to the LINE bot.
 - **Faster entry:** paste a raw customer blob and click *Split into fields* to fill
-  name/phone/address (needs `ANTHROPIC_API_KEY`); drag, paste, or upload the product
+  name/phone/address (needs `OPENROUTER_API_KEY`); drag, paste, or upload the product
   image, or try *Fetch image from link* (best-effort — Xianyu/Taobao often block).
 - **Agencies:** add them under **Agencies**, pick one per order. **Stats** then
   compares agencies by avg transit days (total + per leg), profit, margin, and

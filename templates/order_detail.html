@@ -43,6 +43,34 @@
 <form method="post" enctype="multipart/form-data" class="grid gap-5 lg:grid-cols-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+  {# Order info — date/mode/LOT are editable here since mistakes at creation
+     are normal; they're intentionally NOT part of the status-advance form
+     above so correcting them never writes a status_log entry. #}
+  <section class="card p-5 lg:col-span-2">
+    <h3 class="mb-4 text-sm font-semibold text-slate-900">Order info</h3>
+    <div class="grid gap-4 sm:grid-cols-3">
+      <div>
+        <label class="label">Order date</label>
+        <input class="input" name="order_date" type="date" value="{{ order.created_at[:10] if order.created_at else '' }}">
+      </div>
+      <div>
+        <label class="label">Mode</label>
+        <select class="input" name="tracking_mode">
+          <option value="รถ" {{ 'selected' if order.tracking_mode == 'รถ' else '' }}>รถ (truck)</option>
+          <option value="เรือ" {{ 'selected' if order.tracking_mode == 'เรือ' else '' }}>เรือ (ship)</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">LOT number</label>
+        <input class="input" name="tracking_lot" type="number" value="{{ order.tracking_lot }}">
+      </div>
+    </div>
+    <div class="mt-4">
+      <label class="label">Shipping info <span class="font-normal text-slate-400">(name/phone/address the customer sent — submitted via LINE or typed here)</span></label>
+      <textarea class="input" name="shipping_info" rows="2">{{ order.shipping_info or '' }}</textarea>
+    </div>
+  </section>
+
   {# Product #}
   <section class="card p-5 lg:col-span-2">
     <h3 class="mb-4 text-sm font-semibold text-slate-900">Product</h3>

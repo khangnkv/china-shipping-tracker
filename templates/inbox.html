@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block content %}
+<h2 class="mb-1 text-lg font-bold text-slate-900">Inbox</h2>
+<p class="mb-4 text-sm text-slate-400">LINE conversations, oldest history only from when this page shipped. Replying from the official LINE app works exactly as before — this is just an optional shortcut.</p>
+
+{% if threads %}
+<div class="space-y-4">
+  {% for t in threads %}
+  <details class="card p-5" {{ 'open' if t.flagged_count > 0 else '' }}>
+    <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        {% if t.flagged_count > 0 %}<span class="h-2 w-2 shrink-0 rounded-full bg-amber-500"></span>{% endif %}
+        <span class="text-sm font-semibold text-slate-900">{{ t.name }}</span>
+        <span class="text-xs text-slate-400">{{ t.phone or '' }}</span>
+      </div>
+      <span class="text-xs text-slate-400">{{ t.last_at | local_dt }}</span>
+    </summary>
+
+    <div class="mt-4 max-h-72 space-y-2 overflow-y-auto border-t border-slate-100 pt-4">
+      {% for m in history[t.customer_id] %}
+      <div class="flex {{ 'justify-end' if m.direction == 'out' else 'justify-start' }}">
+        <div class="max-w-[80%] rounded-lg px-3 py-2 text-sm {{ 'bg-slate-900 text-white' if m.direction == 'out' else 'bg-slate-100 text-slate-700' }}">
+          {{ m.text }}
+          {% if m.needs_admin %}<span class="ml-1 text-xs text-amber-400">&#9679;</span>{% endif %}
+          <div class="mt-0.5 text-[10px] {{ 'text-slate-300' if m.direction == 'out' else 'text-slate-400' }}">
+            {{ m.created_at | local_dt }}{% if m.direction == 'out' and m.source == 'admin' %} · you{% elif m.direction == 'out' %} · bot{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if t.line_user_id %}
+    <form method="post" enctype="multipart/form-data" class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="customer_id" value="{{ t.customer_id }}">
+      <input class="input flex-1" name="text" placeholder="Type a reply…">
+      <input class="text-xs text-slate-500" type="file" name="image" accept="image/jpeg,image/png,image/webp">
+      <button type="submit" class="btn-primary">{{ icon('message-circle') }} Send</button>
+    </form>
+    {% else %}
+    <p class="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-400">Not currently linked to LINE — can't push a reply.</p>
+    {% endif %}
+  </details>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card py-16 text-center">
+  <div class="mx-auto mb-3 flex justify-center text-slate-300">{{ icon('message-circle', 'h-10 w-10') }}</div>
+  <p class="text-sm text-slate-400">No conversations yet.</p>
+</div>
+{% endif %}
+{% endblock %}

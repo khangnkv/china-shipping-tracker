@@ -66,14 +66,14 @@ def test_legacy_status_migration(app_module):
 # ---- parse_customer --------------------------------------------------------
 
 def test_parse_customer_parses_mocked_response(app_module, monkeypatch):
-    monkeypatch.setattr(app_module, "ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(app_module, "OPENROUTER_API_KEY", "test-key")
 
     class FakeResp:
         def raise_for_status(self):
             pass
 
         def json(self):
-            return {"content": [{"text": json.dumps({"name": "สมชาย", "phone": "0812345678", "address": "123 ถ.สุขุมวิท"})}]}
+            return {"choices": [{"message": {"content": json.dumps({"name": "สมชาย", "phone": "0812345678", "address": "123 ถ.สุขุมวิท"})}}]}
 
     monkeypatch.setattr(app_module.requests, "post", lambda *a, **k: FakeResp())
     out = app_module.parse_customer("สมชาย 0812345678 123 ถ.สุขุมวิท")
@@ -81,7 +81,7 @@ def test_parse_customer_parses_mocked_response(app_module, monkeypatch):
 
 
 def test_parse_customer_no_key_returns_none(app_module, monkeypatch):
-    monkeypatch.setattr(app_module, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(app_module, "OPENROUTER_API_KEY", "")
     assert app_module.parse_customer("anything") is None
 
 
@@ -98,6 +98,45 @@ def test_agency_add_and_toggle(app_module, client):
     with app_module.app.app_context():
         a2 = app_module.get_db().execute("SELECT * FROM agencies WHERE id=?", (a["id"],)).fetchone()
     assert a2["active"] == 0
+
+
+def test_agency_route_with_country_picklist_and_other(app_module, client):
+    login(client)
+    with app_module.app.app_context():
+        db = app_module.get_db()
+        china_id = db.execute("SELECT id FROM countries WHERE name='China'").fetchone()["id"]
+
+    # Picklist "from" (China) + free-text "to" (Other -> Laos).
+    client.post(
+        "/admin/agencies",
+        data={
+            "action": "add", "name": "CN-Laos-Express",
+            "from_country_id": str(china_id), "to_country_id": "__other__",
+            "to_country_text": "Laos", "two_way": "on", "url": "https://example.com",
+        },
+        follow_redirects=True,
+    )
+    with app_module.app.app_context():
+        db = app_module.get_db()
+        a = db.execute("SELECT * FROM agencies WHERE name='CN-Laos-Express'").fetchone()
+    assert a["from_country_id"] == china_id
+    assert a["to_country_id"] is None
+    assert a["to_country_text"] == "Laos"
+    assert a["two_way"] == 1
+    assert a["url"] == "https://example.com"
+
+
+def test_country_add_and_toggle(app_module, client):
+    login(client)
+    client.post("/admin/agencies", data={"action": "add_country", "country_name": "Cambodia"}, follow_redirects=True)
+    with app_module.app.app_context():
+        c = app_module.get_db().execute("SELECT * FROM countries WHERE name='Cambodia'").fetchone()
+    assert c is not None and c["active"] == 1
+
+    client.post("/admin/agencies", data={"action": "toggle_country", "country_id": c["id"]}, follow_redirects=True)
+    with app_module.app.app_context():
+        c2 = app_module.get_db().execute("SELECT * FROM countries WHERE id=?", (c["id"],)).fetchone()
+    assert c2["active"] == 0
 
 
 # ---- status advance --------------------------------------------------------
@@ -174,7 +213,7 @@ def test_notify_pushes_and_marks(app_module, client, monkeypatch):
     assert o["last_notified_status"] == "at_china_wh"
 
 
-def test_track_hides_china_tracking_and_agency(app_module, client):
+def test_track_shows_china_tracking_but_hides_agency(app_module, client):
     with app_module.app.app_context():
         db = app_module.get_db()
         now = datetime.utcnow().isoformat()
@@ -187,6 +226,9 @@ def test_track_hides_china_tracking_and_agency(app_module, client):
         )
         app_module.get_db().commit()
     html = client.get("/track/TRK555").get_data(as_text=True)
-    assert "SF-SECRET-123" not in html
+    # China-leg tracking number IS shown to the customer (item 5: it's their
+    # parcel's own tracking number, not internal business data).
+    assert "SF-SECRET-123" in html
+    # Agency/route info stays internal -- never shown on the public page.
     assert "SecretAgency" not in html
     assert "11278" not in html and "รถ" not in html

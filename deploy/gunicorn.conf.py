@@ -1,6 +1,6 @@
 # Gunicorn config for the shipping tracker (behind Caddy).
 bind = "127.0.0.1:5000"
-workers = 2                 # low traffic; SQLite + WAL handles this fine
+workers = 3                 # low traffic; extra headroom so one slow outbound call (LINE/Anthropic) doesn't block everything else
 timeout = 30
 graceful_timeout = 30
 accesslog = "/var/log/shipping/access.log"

@@ -7,6 +7,7 @@
   <dl class="grid gap-3 sm:grid-cols-2">
     <div><dt class="text-xs text-slate-400">Access token</dt><dd class="text-sm font-medium {{ 'text-green-600' if diag.token_set else 'text-red-600' }}">{{ 'Set' if diag.token_set else 'MISSING' }}</dd></div>
     <div><dt class="text-xs text-slate-400">Channel secret</dt><dd class="text-sm font-medium {{ 'text-green-600' if diag.secret_set else 'text-red-600' }}">{{ 'Set' if diag.secret_set else 'MISSING' }}</dd></div>
+    <div><dt class="text-xs text-slate-400">OpenRouter key (bilingual smart replies)</dt><dd class="text-sm font-medium {{ 'text-green-600' if diag.openrouter_key_set else 'text-amber-600' }}">{{ 'Set' if diag.openrouter_key_set else 'Not set — keyword-only mode' }}</dd></div>
     <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Public base URL (QR + /track target)</dt><dd class="text-sm font-medium text-slate-700 break-all">{{ diag.public_base_url }}</dd></div>
     <div><dt class="text-xs text-slate-400">Last inbound webhook</dt><dd class="text-sm font-medium text-slate-700">{{ diag.last_webhook_at }}</dd></div>
     <div><dt class="text-xs text-slate-400">Linked customers</dt><dd class="text-sm font-medium text-slate-700">{{ diag.linked_count }}</dd></div>

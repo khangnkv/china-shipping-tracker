@@ -100,10 +100,16 @@
           <td class="px-4 py-3"><span class="font-mono text-sm font-medium text-slate-900">{{ o.link_code }}</span></td>
           <td class="px-4 py-3">
             <div class="text-sm font-medium text-slate-900">{{ o.customer_name }}</div>
-            {% if o.customer_phone %}<div class="text-xs text-slate-400">{{ o.customer_phone }}</div>{% endif %}
+            {% if o.customer_phone %}<div class="text-xs text-slate-400">{{ o.customer_phone }}{% if o.shipping_info %} · <span class="text-teal-600" title="Shipping info on file">📍</span>{% endif %}</div>{% endif %}
           </td>
           <td class="hidden px-4 py-3 md:table-cell">
-            <div class="max-w-[180px] truncate text-sm text-slate-600">{{ o.item_desc_en or o.item_title_zh or "—" }}</div>
+            <div class="flex items-center gap-2">
+              {% if o.item_image %}
+              <img src="{{ url_for('static', filename=item_image_thumb(o.item_image)) }}" alt="" loading="lazy"
+                   class="h-8 w-8 shrink-0 rounded border border-slate-200 object-cover">
+              {% endif %}
+              <div class="max-w-[160px] truncate text-sm text-slate-600">{{ o.item_desc_en or o.item_title_zh or "—" }}</div>
+            </div>
           </td>
           <td class="hidden px-4 py-3 lg:table-cell">
             <span class="text-sm font-medium {{ 'text-slate-300' if not o.payment_amount else ('text-green-600' if p.profit >= 0 else 'text-red-600') }}">

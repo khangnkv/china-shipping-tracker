@@ -48,14 +48,14 @@ def test_webhook_linked_customer_typing_code_gets_friendly_status(app_module, cl
 
 
 def test_translate_title_parses_mocked_response(app_module, monkeypatch):
-    monkeypatch.setattr(app_module, "ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(app_module, "OPENROUTER_API_KEY", "test-key")
 
     class FakeResp:
         def raise_for_status(self):
             pass
 
         def json(self):
-            return {"content": [{"text": json.dumps({"en": "red shoes", "th": "รองเท้าแดง"})}]}
+            return {"choices": [{"message": {"content": json.dumps({"en": "red shoes", "th": "รองเท้าแดง"})}}]}
 
     monkeypatch.setattr(app_module.requests, "post", lambda *a, **k: FakeResp())
     out = app_module.translate_title("红鞋")
@@ -63,5 +63,24 @@ def test_translate_title_parses_mocked_response(app_module, monkeypatch):
 
 
 def test_translate_title_no_key_returns_none(app_module, monkeypatch):
-    monkeypatch.setattr(app_module, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(app_module, "OPENROUTER_API_KEY", "")
     assert app_module.translate_title("红鞋") is None
+
+
+def test_openrouter_json_strips_markdown_code_fence(app_module, monkeypatch):
+    """Real OpenRouter/Claude responses sometimes wrap JSON in ```json ... ```
+    despite the prompt saying 'return ONLY compact JSON' -- caught live while
+    activating the production key. Must not break parsing."""
+    monkeypatch.setattr(app_module, "OPENROUTER_API_KEY", "test-key")
+
+    class FakeResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            fenced = "```json\n" + json.dumps({"en": "red shoes", "th": "รองเท้าแดง"}) + "\n```"
+            return {"choices": [{"message": {"content": fenced}}]}
+
+    monkeypatch.setattr(app_module.requests, "post", lambda *a, **k: FakeResp())
+    out = app_module.translate_title("红鞋")
+    assert out == {"en": "red shoes", "th": "รองเท้าแดง"}

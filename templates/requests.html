@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block content %}
+<h2 class="mb-1 text-lg font-bold text-slate-900">Order requests</h2>
+<p class="mb-4 text-sm text-slate-400">Submitted via the public request page or "NEW ORDER" in LINE. Convert to create a real order once you know the mode and LOT number.</p>
+
+{% if pending %}
+<div class="space-y-4">
+  {% for r in pending %}
+  <div class="card p-5">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p class="text-sm font-semibold text-slate-900">{{ r.customer_name }}</p>
+        <p class="text-xs text-slate-400">{{ r.customer_phone }}{% if r.customer_address %} &middot; {{ r.customer_address }}{% endif %}</p>
+        <p class="mt-2 text-sm text-slate-700">{{ r.item_description }}</p>
+        {% if r.source_link %}<a href="{{ r.source_link }}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-xs text-blue-600 hover:underline">{{ r.source_link }}</a>{% endif %}
+      </div>
+      <span class="shrink-0 font-mono text-xs text-slate-400">{{ r.request_code }} &middot; {{ r.created_at[:10] }}</span>
+    </div>
+
+    <form method="post" class="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="request_id" value="{{ r.id }}">
+      <div>
+        <label class="label">Mode</label>
+        <select class="input" name="mode">
+          <option value="รถ">รถ (truck)</option>
+          <option value="เรือ">เรือ (ship)</option>
+        </select>
+      </div>
+      <div><label class="label">LOT number</label><input class="input" name="lot" type="number" placeholder="e.g. 11092" required></div>
+      <div><label class="label">Agency</label>
+        <select class="input" name="agency_id">
+          <option value="">— none —</option>
+          {% for a in agencies %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">{{ icon('check-circle') }} Convert to order</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card py-16 text-center">
+  <div class="mx-auto mb-3 flex justify-center text-slate-300">{{ icon('clipboard-list', 'h-10 w-10') }}</div>
+  <p class="text-sm text-slate-400">No pending requests.</p>
+</div>
+{% endif %}
+{% endblock %}

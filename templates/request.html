@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request an order</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+{% from "_macros.html" import icon %}
+<body class="min-h-screen bg-slate-50 text-slate-900">
+
+{% if not_found %}
+  <div class="flex min-h-screen flex-col items-center justify-center px-4">
+    <div class="w-full max-w-sm text-center">
+      <div class="mx-auto mb-3 flex justify-center text-slate-300">{{ icon('alert-circle', 'h-10 w-10') }}</div>
+      <h1 class="text-lg font-bold text-slate-900">Request not found</h1>
+      <p class="mt-1 text-sm text-slate-500">Please check your link and try again.</p>
+    </div>
+  </div>
+{% else %}
+  <div class="bg-white px-4 pb-5 pt-6 shadow-sm">
+    <div class="mx-auto max-w-md">
+      <div class="flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900">{{ icon('package', 'h-4 w-4 text-teal-400') }}</span>
+        <span class="text-sm font-semibold text-slate-900">Shipping Tracker</span>
+      </div>
+      <h1 class="mt-4 text-lg font-bold text-slate-900">
+        {% if submitted %}Your order request{% else %}Request an order{% endif %}
+      </h1>
+      {% if submitted %}
+      <p class="mt-1 text-xs text-slate-400">
+        Reference code <span class="font-mono font-medium text-slate-600">{{ request_row.request_code }}</span>
+        {% if request_row.status == 'new' %}&middot; awaiting review{% else %}&middot; already processed{% endif %}
+      </p>
+      {% else %}
+      <p class="mt-1 text-sm text-slate-500">Tell us what you'd like to order and how to reach you — we'll take it from there.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mx-auto max-w-md px-4 py-5">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="mb-4 space-y-2">
+          {% for m in messages %}
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{{ m }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% if submitted and request_row.status == 'converted' %}
+    <div class="mb-4 flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-3">
+      <span class="shrink-0 text-green-600">{{ icon('check-circle', 'h-5 w-5') }}</span>
+      <p class="text-sm font-semibold text-green-700">This request has been processed into an order.</p>
+    </div>
+    {% endif %}
+
+    <form method="post" class="card space-y-4 p-5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label">Your name</label><input class="input" name="name" value="{{ values.name }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
+      <div><label class="label">Phone number</label><input class="input" name="phone" value="{{ values.phone }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
+      <div><label class="label">Delivery address <span class="font-normal text-slate-400">(optional for now)</span></label><input class="input" name="address" value="{{ values.address }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
+      <div><label class="label">What would you like to order?</label>
+        <textarea class="input" name="item_description" rows="3" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>{{ values.item_description }}</textarea>
+      </div>
+      <div><label class="label">Product link <span class="font-normal text-slate-400">(optional)</span></label><input class="input" name="source_link" type="url" value="{{ values.source_link }}" placeholder="https://..." {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
+      {% if not submitted or request_row.status == 'new' %}
+      <button type="submit" class="btn-primary w-full justify-center">{{ icon('plus') }} {{ 'Save changes' if submitted else 'Submit request' }}</button>
+      {% endif %}
+    </form>
+
+    {% if submitted %}
+    <p class="mt-3 text-center text-xs text-slate-400">
+      Bookmark this page to check back — <span class="font-mono">{{ request.url }}</span>
+    </p>
+    {% endif %}
+
+    {% if LINE_CONTACT %}
+    <a href="https://line.me/ti/p/~{{ LINE_CONTACT.lstrip('@') }}" target="_blank" rel="noopener noreferrer"
+       class="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#05b04c]">
+      {{ icon('message-circle', 'h-5 w-5') }} Message us on LINE
+    </a>
+    <p class="mt-3 text-center text-xs text-slate-400">
+      Send your phone number on LINE and we'll link this to your chat automatically — no extra code needed.
+    </p>
+    {% endif %}
+  </div>
+{% endif %}
+</body>
+</html>
