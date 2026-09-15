@@ -93,28 +93,56 @@
     </div>
     {% endif %}
 
+    {# Step tracker: purely visual progress cue. "photo" advances to "budget"
+       specifically when a reference image is dropped/attached (see the
+       dropzone:filled listener in static/interactive.js). #}
+    {% if not submitted %}
+    <div data-step-tracker class="mb-4 flex items-center gap-2">
+      <div class="flex items-center gap-1.5" data-step="details">
+        <span data-step-dot class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition" style="background: var(--brand); color: #fff;">1</span>
+        <span data-step-label class="text-[11px] font-semibold transition" style="color: var(--text);">{{ t('request.step_details') }}</span>
+      </div>
+      <div class="h-px flex-1" style="background: var(--border);"></div>
+      <div class="flex items-center gap-1.5" data-step="photo">
+        <span data-step-dot class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition" style="background: var(--border-soft); color: var(--text-faint2);">2</span>
+        <span data-step-label class="text-[11px] font-medium transition" style="color: var(--text-faint);">{{ t('request.step_photo') }}</span>
+      </div>
+      <div class="h-px flex-1" style="background: var(--border);"></div>
+      <div class="flex items-center gap-1.5" data-step="budget">
+        <span data-step-dot class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition" style="background: var(--border-soft); color: var(--text-faint2);">3</span>
+        <span data-step-label class="text-[11px] font-medium transition" style="color: var(--text-faint);">{{ t('request.step_budget') }}</span>
+      </div>
+    </div>
+    {% endif %}
+
     <form method="post" enctype="multipart/form-data" class="card space-y-4 p-5">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div><label class="label">{{ t('request.name') }}</label><input class="input" name="name" value="{{ values.name }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
-      <div><label class="label">{{ t('request.phone') }}</label><input class="input" name="phone" value="{{ values.phone }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
+      <div><label class="label">{{ t('request.name') }}</label><input class="input" data-step-source="details" name="name" value="{{ values.name }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
+      <div><label class="label">{{ t('request.phone') }}</label><input class="input" data-step-source="details" name="phone" value="{{ values.phone }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
       <div><label class="label">{{ t('request.address') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.address_optional') }}</span></label><input class="input" name="address" value="{{ values.address }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
       <div><label class="label">{{ t('request.other_contact') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
         <input class="input" name="other_contact" value="{{ values.other_contact }}" placeholder="{{ t('request.other_contact_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
         <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('request.other_contact_hint') }}</p>
       </div>
       <div><label class="label">{{ t('request.item') }}</label>
-        <textarea class="input" name="item_description" rows="3" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>{{ values.item_description }}</textarea>
+        <textarea class="input" data-step-source="details" name="item_description" rows="3" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>{{ values.item_description }}</textarea>
       </div>
       <div><label class="label">{{ t('request.link') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label><input class="input" name="source_link" type="url" value="{{ values.source_link }}" placeholder="https://..." {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
       {% if not submitted %}
-      <div><label class="label">{{ t('request.reference_image') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
-        <input class="input" name="reference_image" type="file" accept="image/jpeg,image/png,image/webp">
+      <div>
+        <label class="label">{{ t('request.reference_image') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
+        <label data-dropzone class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-5 text-center transition" style="border-color: var(--input-border); background: var(--bg-card-soft);">
+          <input type="file" name="reference_image" accept="image/jpeg,image/png,image/webp" class="hidden">
+          <img data-dropzone-preview hidden alt="" class="max-h-28 rounded-lg" style="border: 1px solid var(--border);">
+          <span data-dropzone-icon style="color: var(--text-faint);">{{ icon('package', 'h-6 w-6') }}</span>
+          <span data-dropzone-hint class="text-xs font-medium" style="color: var(--text-muted);">{{ t('request.dropzone_hint') }}</span>
+        </label>
         <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('request.reference_image_hint') }}</p>
       </div>
       {% endif %}
       <div class="rounded-xl p-3.5" style="background: var(--brand-tint-bg); border: 1px solid var(--brand-tint-border);">
         <label class="mb-1.5 block text-sm font-bold" style="color: var(--brand-text);">{{ t('request.budget') }}</label>
-        <input class="input" name="budget" value="{{ values.budget }}" placeholder="{{ t('request.budget_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
+        <input class="input" data-step-source="budget" name="budget" value="{{ values.budget }}" placeholder="{{ t('request.budget_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
         <p class="mt-1.5 text-xs" style="color: var(--brand-text); opacity: 0.85;">{{ t('request.budget_hint') }}</p>
       </div>
 

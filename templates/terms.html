@@ -22,25 +22,45 @@
     </div>
     <h1 class="mt-4 text-lg font-bold">{{ t('terms.title') }}</h1>
     <p class="mt-1 text-sm" style="color: var(--text-muted);">{{ t('terms.intro') }}</p>
+    <p class="mt-2 text-xs" style="color: var(--text-faint);">{{ t('terms.updated_label') }}: 15 September 2026</p>
   </div>
 </div>
 
 <div class="mx-auto max-w-2xl px-4 py-6">
+
+  {# Plain-language summary -- the detailed sections below are what's
+     actually binding, but most people never read past a summary, so lead
+     with an honest one rather than hoping they scroll. #}
+  <div class="mb-5 rounded-xl p-4" style="background: var(--brand-tint-bg); border: 1px solid var(--brand-tint-border);">
+    <p class="text-xs font-bold uppercase tracking-wide" style="color: var(--brand-text);">{{ t('terms.summary_title') }}</p>
+    <ul class="mt-2 space-y-1.5 text-sm" style="color: var(--brand-text);">
+      {% for key in ['terms.summary_1', 'terms.summary_2', 'terms.summary_3', 'terms.summary_4'] %}
+      <li class="flex items-start gap-2"><span class="mt-1.5 h-1 w-1 shrink-0 rounded-full" style="background: var(--brand-text);"></span>{{ t(key) }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
   <div class="card divide-y" style="border-color: var(--border);">
     {% set sections = [
       ('terms.role_title', 'terms.role_body'),
       ('terms.liability_title', 'terms.liability_body'),
       ('terms.delay_title', 'terms.delay_body'),
       ('terms.pricing_title', 'terms.pricing_body'),
+      ('terms.payment_title', 'terms.payment_body'),
+      ('terms.privacy_title', 'terms.privacy_body'),
       ('terms.cancel_title', 'terms.cancel_body'),
+      ('terms.law_title', 'terms.law_body'),
       ('terms.contact_title', 'terms.contact_body'),
     ] %}
     {% for title_key, body_key in sections %}
     <div class="p-5" style="border-color: var(--border-soft);">
-      <h2 class="text-sm font-bold">{{ t(title_key) }}</h2>
-      <p class="mt-1.5 text-sm leading-relaxed" style="color: var(--text-secondary);">{{ t(body_key) }}</p>
+      <h2 class="flex items-center gap-2 text-sm font-bold">
+        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px]" style="background: var(--bg-card-soft); border: 1px solid var(--border); color: var(--text-faint);">{{ loop.index }}</span>
+        {{ t(title_key) }}
+      </h2>
+      <p class="mt-1.5 pl-7 text-sm leading-relaxed" style="color: var(--text-secondary);">{{ t(body_key) }}</p>
       {% if title_key == 'terms.delay_title' %}
-      <div class="mt-3 flex flex-wrap gap-4 rounded-lg p-3" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+      <div class="mt-3 ml-7 flex flex-wrap gap-4 rounded-lg p-3" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
         <div class="flex items-center gap-2 text-sm"><span style="color: var(--brand-text);">{{ icon('truck', 'h-4 w-4') }}</span>{{ t('request.delivery_road') }}</div>
         <div class="flex items-center gap-2 text-sm"><span style="color: var(--brand-text);">{{ icon('truck', 'h-4 w-4') }}</span>{{ t('request.delivery_boat') }}</div>
       </div>

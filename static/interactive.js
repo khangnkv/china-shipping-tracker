@@ -110,6 +110,98 @@
     shipInput.addEventListener("input", recompute);
   });
 
+  // ---- Generic image dropzone (Request form's reference photo) ----------
+  // Drag-and-drop with a preview, and a plain click-to-browse fallback for
+  // free (the whole thing is a <label> wrapping the real file input, so a
+  // click always works even if this script never runs). Dispatches
+  // "dropzone:filled" so other widgets (the step tracker below) can react.
+  document.querySelectorAll("[data-dropzone]").forEach(function (dz) {
+    var input = dz.querySelector('input[type="file"]');
+    var preview = dz.querySelector("[data-dropzone-preview]");
+    var icon = dz.querySelector("[data-dropzone-icon]");
+    var hint = dz.querySelector("[data-dropzone-hint]");
+    if (!input) return;
+
+    function setFile(file) {
+      if (!file || file.type.indexOf("image/") !== 0) return;
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      if (preview) {
+        preview.src = URL.createObjectURL(file);
+        preview.hidden = false;
+      }
+      if (icon) icon.hidden = true;
+      if (hint) hint.textContent = file.name;
+      dz.dispatchEvent(new CustomEvent("dropzone:filled", { bubbles: true, detail: { file: file } }));
+    }
+
+    input.addEventListener("change", function () {
+      if (input.files[0]) setFile(input.files[0]);
+    });
+    ["dragover", "dragenter"].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) {
+        e.preventDefault();
+        dz.style.borderColor = "var(--brand)";
+        dz.style.background = "var(--brand-tint-bg)";
+      });
+    });
+    ["dragleave", "drop"].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) {
+        e.preventDefault();
+        dz.style.borderColor = "";
+        dz.style.background = "";
+      });
+    });
+    dz.addEventListener("drop", function (e) {
+      var file = e.dataTransfer.files[0];
+      if (file) setFile(file);
+    });
+  });
+
+  // ---- Request-form step tracker -----------------------------------------
+  // Purely a visual progress cue (the form itself is still one page, not a
+  // wizard) -- but the one state change that matters most: dropping/
+  // attaching the reference photo visibly advances to the next step.
+  document.querySelectorAll("[data-step-tracker]").forEach(function (tracker) {
+    var STATE_STYLE = {
+      current: { dotBg: "var(--brand)", dotColor: "#fff", labelColor: "var(--text)" },
+      done: { dotBg: "var(--brand-tint-bg)", dotColor: "var(--brand-text)", labelColor: "var(--text-secondary)" },
+      upcoming: { dotBg: "var(--border-soft)", dotColor: "var(--text-faint2)", labelColor: "var(--text-faint)" },
+    };
+    function setStep(name, state) {
+      var step = tracker.querySelector('[data-step="' + name + '"]');
+      if (!step) return;
+      var style = STATE_STYLE[state];
+      var dot = step.querySelector("[data-step-dot]");
+      var label = step.querySelector("[data-step-label]");
+      if (dot) { dot.style.background = style.dotBg; dot.style.color = style.dotColor; }
+      if (label) label.style.color = style.labelColor;
+    }
+    var advancedPastDetails = false;
+    document.querySelectorAll('[data-step-source="details"]').forEach(function (field) {
+      field.addEventListener("focus", function () {
+        if (advancedPastDetails) return;
+        advancedPastDetails = true;
+        setStep("details", "done");
+        setStep("photo", "current");
+      });
+    });
+    document.querySelectorAll("[data-dropzone]").forEach(function (dz) {
+      dz.addEventListener("dropzone:filled", function () {
+        setStep("details", "done");
+        setStep("photo", "done");
+        setStep("budget", "current");
+      });
+    });
+    document.querySelectorAll('[data-step-source="budget"]').forEach(function (field) {
+      field.addEventListener("focus", function () {
+        setStep("details", "done");
+        setStep("budget", "current");
+      });
+    });
+  });
+
   // ---- Landing page scroll-reveal ---------------------------------------
   // Progressive enhancement only -- .reveal elements are fully visible by
   // default (see the .reveal CSS rule) so nothing breaks without JS.
