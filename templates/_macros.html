@@ -1,31 +1,26 @@
 {# ---- Status badge ---------------------------------------------------------
-   Full Tailwind class strings per status so the CLI content scanner keeps them
-   (never build class names by concatenation). Label comes from CUSTOMER_STATUS. #}
-{% set STATUS_CLASSES = {
-  "ordered":          "bg-slate-100 text-slate-700 ring-slate-200",
-  "to_china_wh":      "bg-blue-50 text-blue-700 ring-blue-200",
-  "at_china_wh":      "bg-cyan-50 text-cyan-700 ring-cyan-200",
-  "cross_border":     "bg-amber-50 text-amber-700 ring-amber-200",
-  "th_customs":       "bg-orange-50 text-orange-700 ring-orange-200",
-  "at_th_wh":         "bg-teal-50 text-teal-700 ring-teal-200",
-  "out_for_delivery": "bg-violet-50 text-violet-700 ring-violet-200",
-  "delivered":        "bg-green-50 text-green-700 ring-green-200",
-} %}
-{% set STATUS_DOTS = {
-  "ordered":          "bg-slate-400",
-  "to_china_wh":      "bg-blue-500",
-  "at_china_wh":      "bg-cyan-500",
-  "cross_border":     "bg-amber-500",
-  "th_customs":       "bg-orange-500",
-  "at_th_wh":         "bg-teal-500",
-  "out_for_delivery": "bg-violet-500",
-  "delivered":        "bg-green-500",
+   One hue per pipeline stage, resolved to --status-{hue}-{bg,text,dot,ring}
+   custom properties (tailwind.input.css) instead of literal Tailwind color
+   classes, so the badge -- the single most-repeated colored element in the
+   app -- actually follows dark mode instead of staying a light-mode-only
+   pill (audit finding). Label comes from CUSTOMER_STATUS. #}
+{% set STATUS_HUE = {
+  "ordered":          "slate",
+  "to_china_wh":      "blue",
+  "at_china_wh":      "cyan",
+  "cross_border":     "amber",
+  "th_customs":       "orange",
+  "at_th_wh":         "teal",
+  "out_for_delivery": "violet",
+  "delivered":        "green",
 } %}
 
 {% macro status_badge(status, size="md") -%}
   {% set pad = "px-2 py-0.5 text-xs" if size == "sm" else "px-2.5 py-1 text-sm" %}
-  <span class="inline-flex items-center gap-1.5 rounded-full font-medium ring-1 {{ STATUS_CLASSES.get(status, 'bg-slate-100 text-slate-700 ring-slate-200') }} {{ pad }}">
-    <span class="h-1.5 w-1.5 rounded-full {{ STATUS_DOTS.get(status, 'bg-slate-400') }}"></span>
+  {% set hue = STATUS_HUE.get(status, "slate") %}
+  <span class="inline-flex items-center gap-1.5 rounded-full font-medium ring-1 {{ pad }}"
+        style="background: var(--status-{{ hue }}-bg); color: var(--status-{{ hue }}-text); --tw-ring-color: var(--status-{{ hue }}-ring);">
+    <span class="h-1.5 w-1.5 rounded-full" style="background: var(--status-{{ hue }}-dot);"></span>
     {{ CUSTOMER_STATUS.get(status, status) }}
   </span>
 {%- endmacro %}

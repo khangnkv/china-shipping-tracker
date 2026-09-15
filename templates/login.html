@@ -33,7 +33,8 @@
       <div class="relative">
         <input id="pw" type="password" name="password" required autocomplete="current-password"
                class="input pr-10" placeholder="••••••••">
-        <button type="button" onclick="togglePw()" class="absolute right-3 top-1/2 -translate-y-1/2 transition" style="color: var(--text-faint);">
+        <button type="button" id="pwToggle" onclick="togglePw()" aria-label="Show password" aria-pressed="false"
+                class="absolute right-3 top-1/2 -translate-y-1/2 transition" style="color: var(--text-faint);">
           <span id="eye">{{ icon('eye') }}</span><span id="eyeoff" class="hidden">{{ icon('eye-off') }}</span>
         </button>
       </div>
@@ -45,10 +46,13 @@
 <script>
   function togglePw() {
     const pw = document.getElementById('pw');
+    const btn = document.getElementById('pwToggle');
     const showing = pw.type === 'text';
     pw.type = showing ? 'password' : 'text';
     document.getElementById('eye').classList.toggle('hidden', !showing);
     document.getElementById('eyeoff').classList.toggle('hidden', showing);
+    btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    btn.setAttribute('aria-pressed', String(!showing));
   }
 </script>
 <script src="{{ url_for('static', filename='interactive.js') }}" defer></script>

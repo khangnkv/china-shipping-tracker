@@ -20,8 +20,8 @@
   <form method="post" action="{{ url_for('line_test') }}" class="flex flex-wrap items-end gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
-      <label class="label">Linked customer</label>
-      <select class="input" name="customer_id">
+      <label class="label" for="testCustomer">Linked customer</label>
+      <select id="testCustomer" class="input" name="customer_id">
         {% for c in linked %}<option value="{{ c.id }}">{{ c.name }} ({{ c.link_code }})</option>{% endfor %}
       </select>
     </div>

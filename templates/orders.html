@@ -76,10 +76,14 @@
   </select>
 </div>
 
-{# Table #}
+{# Table (desktop/tablet) + card list (phone) -- the table used to just hide
+   columns at narrow widths rather than reflow, which works but wastes the
+   space a phone actually has; the card list below gives every order its own
+   full-width row with nothing truncated. Both share data-status/data-search
+   so filterRows() below drives whichever one the viewport is showing. #}
 <div class="card overflow-hidden">
   {% if orders %}
-  <div class="overflow-x-auto">
+  <div class="hidden overflow-x-auto sm:block">
     <table class="w-full">
       <thead>
         <tr class="text-left" style="border-bottom: 1px solid var(--border); background: var(--bg-card-soft);">
@@ -132,6 +136,41 @@
       </tbody>
     </table>
   </div>
+
+  <div id="cardsList" class="sm:hidden">
+    {% for o in orders %}
+    {% set p = order_profit(o) %}
+    <a href="{{ url_for('order_detail', order_id=o.id) }}" class="block p-4 transition active:scale-[0.99]"
+       style="border-bottom: 1px solid var(--border-soft);"
+       data-status="{{ o.status }}"
+       data-search="{{ (o.link_code ~ ' ' ~ o.customer_name ~ ' ' ~ (o.customer_phone or '') ~ ' ' ~ (o.item_desc_en or '') ~ ' ' ~ (o.item_title_zh or ''))|lower }}">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-2.5">
+          {% if o.item_image %}
+          <img src="{{ url_for('static', filename=item_image_thumb(o.item_image)) }}" alt="" loading="lazy"
+               class="h-10 w-10 shrink-0 rounded object-cover" style="border: 1px solid var(--border);">
+          {% endif %}
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-mono text-xs font-medium" style="color: var(--text-faint);">{{ o.link_code }}</span>
+              {% if o.line_user_id %}<span class="text-xs text-green-600">&#9679;</span>{% endif %}
+            </div>
+            <p class="truncate text-sm font-semibold">{{ o.customer_name }}</p>
+            {% if o.item_desc_en or o.item_title_zh %}<p class="truncate text-xs" style="color: var(--text-muted);">{{ o.item_desc_en or o.item_title_zh }}</p>{% endif %}
+          </div>
+        </div>
+        <span style="color: var(--text-faint2);">{{ icon('chevron-right') }}</span>
+      </div>
+      <div class="mt-2.5 flex items-center justify-between gap-2">
+        {{ status_badge(o.status, "sm") }}
+        <span class="text-sm font-medium" style="{% if not o.payment_amount %}color: var(--text-faint2);{% else %}color: {{ '#059669' if p.profit >= 0 else '#dc2626' }};{% endif %}">
+          {{ "฿%s"|format("{:,.0f}".format(p.profit)) if o.payment_amount else "—" }}
+        </span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
   <div id="empty" class="hidden py-16 text-center">
     <div class="mx-auto mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('package', 'h-10 w-10') }}</div>
     <p class="text-sm" style="color: var(--text-faint);">No parcels match your filters</p>
@@ -173,11 +212,15 @@
     const q = document.getElementById('q').value.trim().toLowerCase();
     const sf = document.getElementById('statusFilter').value;
     let visible = 0;
-    document.querySelectorAll('#rows tr').forEach(function (tr) {
-      const okStatus = sf === 'all' || tr.dataset.status === sf;
-      const okSearch = !q || tr.dataset.search.includes(q);
+    // Filters both the desktop table rows and the phone card list -- only
+    // one is ever visible at once (sm: breakpoint), but keeping both in
+    // sync means a mid-session viewport change (tablet rotation) never
+    // shows a stale filter state on the view that was hidden.
+    document.querySelectorAll('#rows tr, #cardsList > [data-status]').forEach(function (el) {
+      const okStatus = sf === 'all' || el.dataset.status === sf;
+      const okSearch = !q || el.dataset.search.includes(q);
       const show = okStatus && okSearch;
-      tr.style.display = show ? '' : 'none';
+      el.style.display = show ? '' : 'none';
       if (show) visible++;
     });
     const empty = document.getElementById('empty');

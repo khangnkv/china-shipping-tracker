@@ -25,7 +25,7 @@
     {% if latest_agency %}<span class="text-xs" style="color: var(--text-faint);">Latest used: <span class="font-medium" style="color: var(--text-secondary);">{{ latest_agency }}</span></span>{% endif %}
   </div>
   {% if agencies %}
-  <div class="overflow-x-auto">
+  <div class="hidden overflow-x-auto sm:block">
     <table class="w-full text-sm">
       <thead>
         <tr class="text-left text-xs uppercase tracking-wide" style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
@@ -52,6 +52,26 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  {# Phone card list -- the 9-column table above is dense even scrolled, so
+     under sm: each agency gets its own stacked card with the metrics that
+     matter most (transit days, profit, margin); the full breakdown (China/
+     cross-border/last-mile legs, ฿/day) stays desktop-only. #}
+  <div class="space-y-2 sm:hidden">
+    {% for a in agencies %}
+    <div class="rounded-lg p-3" style="border: 1px solid var(--border-soft); background: var(--bg-card-soft);">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-semibold">{{ a.name }}</p>
+        <span class="text-xs" style="color: var(--text-faint);">{{ a.count }} order{{ "s" if a.count != 1 else "" }}</span>
+      </div>
+      <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs" style="color: var(--text-muted);">
+        <span>Avg <strong style="color: var(--text-secondary);">{{ "%.1f"|format(a.avg_total) if a.avg_total is not none else "—" }}</strong> days</span>
+        <span>Profit <strong style="color: var(--text-secondary);">฿{{ "{:,.0f}".format(a.profit) }}</strong></span>
+        <span>Margin <strong style="color: var(--text-secondary);">{{ "%.1f%%"|format(a.avg_margin) if a.avg_margin is not none else "—" }}</strong></span>
+      </div>
+    </div>
+    {% endfor %}
   </div>
   <div class="mt-4"><canvas id="agencyChart"></canvas></div>
   {% else %}
@@ -80,11 +100,27 @@
   </div>
   <div class="card p-5">
     <h3 class="mb-3 text-sm font-semibold">Monthly profit</h3>
-    <canvas id="monthlyChart"></canvas>
+    {# sr-only data table: the canvas below has no text content of its own,
+       so a screen-reader user got nothing from this chart until now. #}
+    <table class="sr-only">
+      <caption>Monthly profit in Thai baht</caption>
+      <thead><tr><th scope="col">Month</th><th scope="col">Profit</th></tr></thead>
+      <tbody>
+        {% for month, profit in monthly.items() %}<tr><td>{{ month }}</td><td>฿{{ "{:,.0f}".format(profit) }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    <canvas id="monthlyChart" role="img" aria-label="Bar chart of monthly profit in baht"></canvas>
   </div>
   <div class="card p-5">
     <h3 class="mb-3 text-sm font-semibold">Orders by mode</h3>
-    <canvas id="modeChart"></canvas>
+    <table class="sr-only">
+      <caption>Orders by shipping mode</caption>
+      <thead><tr><th scope="col">Mode</th><th scope="col">Count</th></tr></thead>
+      <tbody>
+        {% for m, vv in by_mode.items() %}<tr><td>{{ m }}</td><td>{{ vv.count }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    <canvas id="modeChart" role="img" aria-label="Doughnut chart of order count by shipping mode"></canvas>
   </div>
 </div>
 </div>

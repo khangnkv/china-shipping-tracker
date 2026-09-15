@@ -25,7 +25,7 @@
   </div>
   <div class="mx-auto flex max-w-md flex-col items-center px-4 py-12 text-center">
     <div class="mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('alert-circle', 'h-10 w-10') }}</div>
-    <h1 class="text-lg font-bold">{{ t('track.not_found_title') }}</h1>
+    <h1 class="text-xl font-bold">{{ t('track.not_found_title') }}</h1>
     <p class="mt-1.5 text-sm" style="color: var(--text-muted);">{{ t('track.not_found_body') }}</p>
     <div class="mt-6 flex w-full flex-col gap-2.5">
       <a href="{{ url_for('landing') }}" class="btn-primary w-full justify-center">{{ t('track.not_found_home') }}</a>
@@ -54,7 +54,7 @@
       </div>
       <div class="mt-4">
         <p class="text-xs" style="color: var(--text-faint);">{{ t('track.title') }}</p>
-        <h1 class="font-mono text-lg font-bold">{{ order.link_code }}</h1>
+        <h1 class="font-mono text-xl font-bold">{{ order.link_code }}</h1>
       </div>
       <div class="mt-3 flex items-center justify-between gap-3">
         <div>
@@ -100,7 +100,7 @@
 
     {# Timeline #}
     <div class="card p-5">
-      <h2 class="mb-4 text-sm font-semibold">{{ t('track.timeline') }}</h2>
+      <h2 class="mb-4 text-base font-semibold">{{ t('track.timeline') }}</h2>
       <div>
         {% for s in STATUS_ORDER %}
         {% set done = loop.index0 <= cur %}
@@ -139,7 +139,7 @@
     <div class="card mt-4 p-4">
       <div class="flex items-center gap-2">
         <span style="color: var(--text-faint);">{{ icon('map-pin') }}</span>
-        <h3 class="text-sm font-semibold">{{ t('track.parcel_details') }}</h3>
+        <h3 class="text-base font-semibold">{{ t('track.parcel_details') }}</h3>
       </div>
       {% if order.item_image %}
       <img src="{{ url_for('static', filename=order.item_image) }}" alt="your item" class="mt-3 w-full rounded-lg" style="border: 1px solid var(--border);">

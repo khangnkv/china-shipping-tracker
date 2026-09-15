@@ -20,7 +20,7 @@
       </a>
       <div class="flex items-center gap-1.5">{{ lang_switch() }}{{ theme_switch() }}</div>
     </div>
-    <h1 class="mt-4 text-lg font-bold">{{ t('terms.title') }}</h1>
+    <h1 class="mt-4 text-xl font-bold">{{ t('terms.title') }}</h1>
     <p class="mt-1 text-sm" style="color: var(--text-muted);">{{ t('terms.intro') }}</p>
     <p class="mt-2 text-xs" style="color: var(--text-faint);">{{ t('terms.updated_label') }}: 15 September 2026</p>
   </div>
@@ -54,7 +54,7 @@
     ] %}
     {% for title_key, body_key in sections %}
     <div class="p-5" style="border-color: var(--border-soft);">
-      <h2 class="flex items-center gap-2 text-sm font-bold">
+      <h2 class="flex items-center gap-2 text-base font-bold">
         <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px]" style="background: var(--bg-card-soft); border: 1px solid var(--border); color: var(--text-faint);">{{ loop.index }}</span>
         {{ t(title_key) }}
       </h2>

@@ -37,6 +37,42 @@
   --danger-bg: #fef2f2;
   --danger-text: #991b1b;
   --danger-dot: #dc2626;
+  /* Order-status badge tokens (status_badge() in _macros.html) -- one hue
+     per pipeline stage, each with a bg/text/dot/ring set so the badge (the
+     single most-repeated colored element in the app) actually follows dark
+     mode instead of staying a literal light-mode Tailwind pill. */
+  --status-slate-bg: #f1f5f9;
+  --status-slate-text: #334155;
+  --status-slate-dot: #94a3b8;
+  --status-slate-ring: #e2e8f0;
+  --status-blue-bg: #eff6ff;
+  --status-blue-text: #1d4ed8;
+  --status-blue-dot: #3b82f6;
+  --status-blue-ring: #bfdbfe;
+  --status-cyan-bg: #ecfeff;
+  --status-cyan-text: #0e7490;
+  --status-cyan-dot: #06b6d4;
+  --status-cyan-ring: #a5f3fc;
+  --status-amber-bg: #fffbeb;
+  --status-amber-text: #b45309;
+  --status-amber-dot: #f59e0b;
+  --status-amber-ring: #fde68a;
+  --status-orange-bg: #fff7ed;
+  --status-orange-text: #c2410c;
+  --status-orange-dot: #f97316;
+  --status-orange-ring: #fed7aa;
+  --status-teal-bg: #f0fdfa;
+  --status-teal-text: #0f766e;
+  --status-teal-dot: #14b8a6;
+  --status-teal-ring: #99f6e4;
+  --status-violet-bg: #f5f3ff;
+  --status-violet-text: #6d28d9;
+  --status-violet-dot: #8b5cf6;
+  --status-violet-ring: #ddd6fe;
+  --status-green-bg: #f0fdf4;
+  --status-green-text: #15803d;
+  --status-green-dot: #22c55e;
+  --status-green-ring: #bbf7d0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -65,6 +101,38 @@
     --danger-bg: rgba(248, 113, 113, 0.16);
     --danger-text: #fca5a5;
     --danger-dot: #f87171;
+    --status-slate-bg: rgba(148, 163, 184, 0.16);
+    --status-slate-text: #cbd5e1;
+    --status-slate-dot: #94a3b8;
+    --status-slate-ring: rgba(148, 163, 184, 0.35);
+    --status-blue-bg: rgba(59, 130, 246, 0.16);
+    --status-blue-text: #93c5fd;
+    --status-blue-dot: #60a5fa;
+    --status-blue-ring: rgba(59, 130, 246, 0.35);
+    --status-cyan-bg: rgba(6, 182, 212, 0.16);
+    --status-cyan-text: #67e8f9;
+    --status-cyan-dot: #22d3ee;
+    --status-cyan-ring: rgba(6, 182, 212, 0.35);
+    --status-amber-bg: rgba(245, 158, 11, 0.16);
+    --status-amber-text: #fcd34d;
+    --status-amber-dot: #fbbf24;
+    --status-amber-ring: rgba(245, 158, 11, 0.35);
+    --status-orange-bg: rgba(249, 115, 22, 0.16);
+    --status-orange-text: #fdba74;
+    --status-orange-dot: #fb923c;
+    --status-orange-ring: rgba(249, 115, 22, 0.35);
+    --status-teal-bg: rgba(20, 184, 166, 0.16);
+    --status-teal-text: #5eead4;
+    --status-teal-dot: #2dd4bf;
+    --status-teal-ring: rgba(20, 184, 166, 0.35);
+    --status-violet-bg: rgba(139, 92, 246, 0.16);
+    --status-violet-text: #c4b5fd;
+    --status-violet-dot: #a78bfa;
+    --status-violet-ring: rgba(139, 92, 246, 0.35);
+    --status-green-bg: rgba(34, 197, 94, 0.16);
+    --status-green-text: #86efac;
+    --status-green-dot: #4ade80;
+    --status-green-ring: rgba(34, 197, 94, 0.35);
   }
 }
 
@@ -93,6 +161,38 @@
   --danger-bg: rgba(248, 113, 113, 0.16);
   --danger-text: #fca5a5;
   --danger-dot: #f87171;
+  --status-slate-bg: rgba(148, 163, 184, 0.16);
+  --status-slate-text: #cbd5e1;
+  --status-slate-dot: #94a3b8;
+  --status-slate-ring: rgba(148, 163, 184, 0.35);
+  --status-blue-bg: rgba(59, 130, 246, 0.16);
+  --status-blue-text: #93c5fd;
+  --status-blue-dot: #60a5fa;
+  --status-blue-ring: rgba(59, 130, 246, 0.35);
+  --status-cyan-bg: rgba(6, 182, 212, 0.16);
+  --status-cyan-text: #67e8f9;
+  --status-cyan-dot: #22d3ee;
+  --status-cyan-ring: rgba(6, 182, 212, 0.35);
+  --status-amber-bg: rgba(245, 158, 11, 0.16);
+  --status-amber-text: #fcd34d;
+  --status-amber-dot: #fbbf24;
+  --status-amber-ring: rgba(245, 158, 11, 0.35);
+  --status-orange-bg: rgba(249, 115, 22, 0.16);
+  --status-orange-text: #fdba74;
+  --status-orange-dot: #fb923c;
+  --status-orange-ring: rgba(249, 115, 22, 0.35);
+  --status-teal-bg: rgba(20, 184, 166, 0.16);
+  --status-teal-text: #5eead4;
+  --status-teal-dot: #2dd4bf;
+  --status-teal-ring: rgba(20, 184, 166, 0.35);
+  --status-violet-bg: rgba(139, 92, 246, 0.16);
+  --status-violet-text: #c4b5fd;
+  --status-violet-dot: #a78bfa;
+  --status-violet-ring: rgba(139, 92, 246, 0.35);
+  --status-green-bg: rgba(34, 197, 94, 0.16);
+  --status-green-text: #86efac;
+  --status-green-dot: #4ade80;
+  --status-green-ring: rgba(34, 197, 94, 0.35);
 }
 
 @layer components {
@@ -114,7 +214,10 @@
     transition-duration: 150ms;
   }
   .btn {
-    @apply inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition active:scale-[0.97];
+    /* min-h-[44px]: WCAG/mobile tap-target guideline -- px-3 py-2 alone sat
+       at ~36px tall (audit finding). items-center keeps short-label buttons
+       vertically centered inside the taller box. */
+    @apply inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition active:scale-[0.97];
     background: var(--bg-card);
     border-color: var(--border);
     color: var(--text-muted);
@@ -123,7 +226,7 @@
     background: var(--border-soft);
   }
   .btn-primary {
-    @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100;
+    @apply inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100;
     background: var(--brand);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }

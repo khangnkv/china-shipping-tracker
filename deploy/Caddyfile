@@ -3,8 +3,21 @@
 # renaming the public URL but keeping an old one alive) -- see the deployed
 # /etc/caddy/Caddyfile on the production host for a live example.
 yourdomain.com {
-	reverse_proxy 127.0.0.1:5000
 	encode gzip
+
+	# Static assets (CSS/JS/uploaded images) served directly by Caddy,
+	# bypassing gunicorn entirely -- faster, and a real cache means repeat
+	# page loads skip the download. max-age is 1 hour, not longer: nothing
+	# here has a cache-busted (hashed) filename, so a long-lived cache would
+	# keep serving stale CSS/JS after a deploy until it naturally expired.
+	# Update the root path if you deployed somewhere other than /opt/shipping.
+	handle_path /static/* {
+		root * /opt/shipping/static
+		header Cache-Control "public, max-age=3600"
+		file_server
+	}
+
+	reverse_proxy 127.0.0.1:5000
 	# LINE webhooks + uploads: allow up to ~6 MB request bodies.
 	request_body {
 		max_size 6MB
