@@ -61,9 +61,9 @@
     </div>
     {% endif %}
 
-    {# Quote: shown once the admin has priced the item (item_cost/shipping_cost set) #}
+    {# Quote: shown once the admin has priced the item (item_cost set) #}
     {% if submitted and (request_row.item_cost is not none or request_row.shipping_cost is not none) %}
-    {% set qstatus = quote_status(request_row.item_cost, request_row.shipping_cost, request_row.budget) %}
+    {% set qstatus = quote_status(request_row.item_cost, request_row.budget) %}
     <div class="card mb-4 p-5">
       <div class="flex items-center justify-between">
         <p class="text-sm font-semibold">{{ t('request.quote_title') }}</p>
@@ -81,11 +81,19 @@
         <div class="flex justify-between text-xs" style="color: var(--text-faint);"><span>{{ t('request.quote_budget') }}</span><span>{{ request_row.budget }}</span></div>
         {% endif %}
       </div>
-      <p class="mt-3 text-xs" style="color: var(--text-faint);">{{ t('request.quote_hint') }}</p>
+      <p class="mt-2 text-xs" style="color: var(--text-faint);">{{ t('request.quote_shipping_note') }}</p>
+      <p class="mt-2 text-xs" style="color: var(--text-faint);">{{ t('request.quote_hint') }}</p>
     </div>
     {% endif %}
 
-    <form method="post" class="card space-y-4 p-5">
+    {% if submitted and request_row.reference_image %}
+    <div class="card mb-4 p-4">
+      <p class="mb-2 text-xs font-medium" style="color: var(--text-faint);">{{ t('request.reference_image') }}</p>
+      <img src="{{ url_for('static', filename=request_row.reference_image) }}" alt="" class="max-h-48 rounded-lg" style="border: 1px solid var(--border);">
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="card space-y-4 p-5">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div><label class="label">{{ t('request.name') }}</label><input class="input" name="name" value="{{ values.name }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
       <div><label class="label">{{ t('request.phone') }}</label><input class="input" name="phone" value="{{ values.phone }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
@@ -98,12 +106,34 @@
         <textarea class="input" name="item_description" rows="3" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>{{ values.item_description }}</textarea>
       </div>
       <div><label class="label">{{ t('request.link') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label><input class="input" name="source_link" type="url" value="{{ values.source_link }}" placeholder="https://..." {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
+      {% if not submitted %}
+      <div><label class="label">{{ t('request.reference_image') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
+        <input class="input" name="reference_image" type="file" accept="image/jpeg,image/png,image/webp">
+        <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('request.reference_image_hint') }}</p>
+      </div>
+      {% endif %}
       <div class="rounded-xl p-3.5" style="background: var(--brand-tint-bg); border: 1px solid var(--brand-tint-border);">
         <label class="mb-1.5 block text-sm font-bold" style="color: var(--brand-text);">{{ t('request.budget') }}</label>
         <input class="input" name="budget" value="{{ values.budget }}" placeholder="{{ t('request.budget_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
         <p class="mt-1.5 text-xs" style="color: var(--brand-text); opacity: 0.85;">{{ t('request.budget_hint') }}</p>
       </div>
+
+      <div class="rounded-lg p-3" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+        <p class="text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('request.delivery_estimates_title') }}</p>
+        <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs" style="color: var(--text-secondary);">
+          <span>{{ t('request.delivery_road') }}</span>
+          <span>{{ t('request.delivery_boat') }}</span>
+        </div>
+        <p class="mt-1.5 text-[11px]" style="color: var(--text-faint);">{{ t('request.delivery_estimates_note') }}</p>
+      </div>
+
       {% if not submitted or request_row.status == 'new' %}
+      {% if not submitted %}
+      <label class="flex items-start gap-2.5 text-xs" style="color: var(--text-secondary);">
+        <input type="checkbox" name="agree_terms" required class="mt-0.5 h-4 w-4 shrink-0 rounded" style="border-color: var(--input-border);">
+        <span>{{ t('request.agree_terms_prefix') }} <a href="{{ url_for('terms_page') }}" target="_blank" rel="noopener noreferrer" class="font-medium underline" style="color: var(--brand-text);">{{ t('request.agree_terms_link') }}</a></span>
+      </label>
+      {% endif %}
       <button type="submit" class="btn-primary w-full justify-center">{{ icon('plus') }} {{ t('request.save') if submitted else t('request.submit') }}</button>
       {% endif %}
     </form>

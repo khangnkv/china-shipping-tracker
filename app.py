@@ -280,6 +280,7 @@ def init_db():
     # against it on /admin/requests. See _quote_status().
     _add_columns(db, "order_requests", [
         "budget TEXT", "other_contact TEXT", "item_cost REAL", "shipping_cost REAL",
+        "reference_image TEXT", "terms_agreed_at TEXT",
     ])
 
     # Backfill phone_normalized for any rows that predate the column.
@@ -587,6 +588,8 @@ TRANSLATIONS = {
     "landing.step4_title": {"en": "We ship & you track", "th": "จัดส่งและติดตามสถานะได้"},
     "landing.step4_body": {"en": "Follow it from the China warehouse to your door, step by step.", "th": "ติดตามพัสดุตั้งแต่คลังจีนจนถึงหน้าบ้านคุณทีละขั้นตอน"},
     "landing.trust_title": {"en": "Why customers trust SINEX", "th": "ทำไมลูกค้าไว้วางใจ SINEX"},
+    "landing.stat_shipments_label": {"en": "shipments delivered", "th": "รายการจัดส่งสำเร็จ"},
+    "landing.stat_since_label": {"en": "operating since", "th": "ดำเนินการตั้งแต่ปี"},
     "landing.trust_line_title": {"en": "A real person answers on LINE", "th": "มีคนจริงตอบแชท LINE"},
     "landing.trust_line_body": {"en": "Not a bot maze — message us any time you have a question.", "th": "ไม่ใช่บอทวนลูป ทักมาได้ทุกเมื่อที่มีคำถาม"},
     "track.title": {"en": "Tracking code", "th": "รหัสติดตามพัสดุ"},
@@ -609,9 +612,18 @@ TRANSLATIONS = {
     "request.item": {"en": "What would you like to order?", "th": "อยากสั่งอะไร?"},
     "request.link": {"en": "Product link", "th": "ลิงก์สินค้า"},
     "request.optional": {"en": "(optional)", "th": "(ไม่บังคับ)"},
-    "request.budget": {"en": "Your budget", "th": "งบประมาณของคุณ"},
+    "request.budget": {"en": "Your budget (for the item itself — shipping is separate)", "th": "งบประมาณของคุณ (ค่าสินค้าเท่านั้น ไม่รวมค่าส่ง)"},
     "request.budget_placeholder": {"en": "e.g. around ฿2,000 — flexible", "th": "เช่น ประมาณ ๒,๐๐๐ บาท ยืดหยุ่นได้"},
-    "request.budget_hint": {"en": "Helps us find the right match before we message you back.", "th": "ช่วยให้เราหาสินค้าที่เหมาะสมก่อนทักกลับไปหาคุณ"},
+    "request.budget_hint": {"en": "This is what you're willing to pay for the item itself. Shipping is calculated separately once your item arrives at our warehouse.", "th": "นี่คืองบที่คุณยินดีจ่ายสำหรับตัวสินค้าเท่านั้น ค่าส่งจะคำนวณแยกหลังจากสินค้าถึงคลังของเรา"},
+    "request.delivery_estimates_title": {"en": "Delivery time estimates", "th": "ระยะเวลาจัดส่งโดยประมาณ"},
+    "request.delivery_road": {"en": "Road (truck): 7–14 days", "th": "ทางรถ: 7–14 วัน"},
+    "request.delivery_boat": {"en": "Boat (ship): 10–30 days", "th": "ทางเรือ: 10–30 วัน"},
+    "request.delivery_estimates_note": {"en": "Estimates only, not a guarantee — see our shipping terms.", "th": "เป็นเพียงการประมาณการ ไม่ใช่การรับประกัน — โปรดดูข้อกำหนดการจัดส่งของเรา"},
+    "request.reference_image": {"en": "Reference photo", "th": "รูปภาพอ้างอิง"},
+    "request.reference_image_hint": {"en": "A screenshot or photo of the item helps us find exactly what you mean.", "th": "ภาพหน้าจอหรือรูปสินค้าจะช่วยให้เราหาสินค้าที่คุณต้องการได้ตรงขึ้น"},
+    "request.agree_terms_prefix": {"en": "I have read and agree to the", "th": "ฉันได้อ่านและยอมรับ"},
+    "request.agree_terms_link": {"en": "Shipping Terms & Liability Disclaimer", "th": "ข้อกำหนดการจัดส่งและข้อจำกัดความรับผิดชอบ"},
+    "request.agree_terms_required": {"en": "Please confirm you've read and agree to the shipping terms before submitting.", "th": "กรุณายืนยันว่าคุณได้อ่านและยอมรับข้อกำหนดการจัดส่งก่อนส่งคำขอ"},
     "request.other_contact": {"en": "Other contact", "th": "ช่องทางติดต่ออื่น"},
     "request.other_contact_placeholder": {"en": "LINE: @user, email, or a Facebook link", "th": "LINE: @user, อีเมล หรือลิงก์ Facebook"},
     "request.other_contact_hint": {"en": "In case we need to reach you a different way about pricing.", "th": "เผื่อเราต้องติดต่อคุณช่องทางอื่นเรื่องราคา"},
@@ -623,14 +635,30 @@ TRANSLATIONS = {
     "request.quote_title": {"en": "Your quote", "th": "ใบเสนอราคาของคุณ"},
     "request.quote_item": {"en": "Item cost", "th": "ค่าสินค้า"},
     "request.quote_shipping": {"en": "Shipping", "th": "ค่าส่ง"},
+    "request.quote_shipping_note": {"en": "Calculated once your item arrives at our warehouse — not included in the budget you gave us.", "th": "คำนวณหลังจากสินค้าถึงคลังของเรา ไม่รวมอยู่ในงบที่คุณแจ้งไว้"},
     "request.quote_total": {"en": "Total", "th": "ยอดรวม"},
-    "request.quote_budget": {"en": "Your budget", "th": "งบของคุณ"},
+    "request.quote_budget": {"en": "Your item budget", "th": "งบค่าสินค้าของคุณ"},
     "request.quote_hint": {"en": "We'll message you on LINE to confirm before shipping.", "th": "เราจะทักไลน์เพื่อยืนยันก่อนจัดส่ง"},
-    "request.quote_within": {"en": "Within budget", "th": "อยู่ในงบ"},
-    "request.quote_over": {"en": "Over budget", "th": "เกินงบ"},
+    "request.quote_within": {"en": "Item within budget", "th": "ค่าสินค้าอยู่ในงบ"},
+    "request.quote_over": {"en": "Item over budget", "th": "ค่าสินค้าเกินงบ"},
     "request.quote_awaiting": {"en": "Awaiting quote", "th": "รอแจ้งราคา"},
     "request.not_found_title": {"en": "Request not found", "th": "ไม่พบคำขอ"},
     "request.not_found_body": {"en": "Please check your link and try again.", "th": "กรุณาตรวจสอบลิงก์แล้วลองใหม่อีกครั้ง"},
+    "terms.title": {"en": "Shipping Terms & Liability Disclaimer", "th": "ข้อกำหนดการจัดส่งและข้อจำกัดความรับผิดชอบ"},
+    "terms.intro": {"en": "Please read this before submitting a request. By checking the agreement box on the request form, you confirm you understand and accept these terms.", "th": "กรุณาอ่านก่อนส่งคำขอ การติ๊กยอมรับในแบบฟอร์มถือว่าคุณเข้าใจและยอมรับข้อกำหนดเหล่านี้"},
+    "terms.role_title": {"en": "SINEX is a forwarding agent, not the seller", "th": "SINEX เป็นตัวแทนรับส่งพัสดุ ไม่ใช่ผู้ขาย"},
+    "terms.role_body": {"en": "We purchase and/or forward items on your behalf from third-party sellers in China. We are an intermediary — we do not manufacture, own, or guarantee the items themselves.", "th": "เราซื้อและ/หรือส่งต่อสินค้าให้คุณจากผู้ขายบุคคลที่สามในประเทศจีน เราเป็นตัวกลาง ไม่ได้เป็นผู้ผลิต เจ้าของ หรือผู้รับประกันตัวสินค้า"},
+    "terms.liability_title": {"en": "No liability for item condition, damage, or quality", "th": "ไม่รับผิดชอบต่อสภาพ ความเสียหาย หรือคุณภาพของสินค้า"},
+    "terms.liability_body": {"en": "Disputes about an item's quality, authenticity, or damage from manufacturing are between you and the original seller — not SINEX. We take reasonable care in handling, but we do not refund or compensate for item defects or damage that occurred before or during the seller's own shipping to our warehouse.", "th": "ข้อพิพาทเกี่ยวกับคุณภาพ ความแท้ หรือความเสียหายจากการผลิตของสินค้า เป็นเรื่องระหว่างคุณกับผู้ขายต้นทาง ไม่ใช่ SINEX เราดูแลสินค้าด้วยความระมัดระวังตามสมควร แต่จะไม่คืนเงินหรือชดเชยความเสียหายที่เกิดขึ้นก่อนหรือระหว่างการจัดส่งของผู้ขายมายังคลังของเรา"},
+    "terms.delay_title": {"en": "Delivery estimates are not guarantees", "th": "ระยะเวลาจัดส่งเป็นเพียงการประมาณการ ไม่ใช่การรับประกัน"},
+    "terms.delay_body": {"en": "Typical delivery times are road (truck): 7–14 days, boat (ship): 10–30 days, counted from when your item leaves the China warehouse. These are estimates based on normal conditions — customs, weather, holidays, and carrier delays can extend them. A delay past these estimates is not, on its own, grounds for a refund or compensation from SINEX.", "th": "ระยะเวลาจัดส่งโดยทั่วไป ทางรถ 7–14 วัน ทางเรือ 10–30 วัน นับจากสินค้าออกจากคลังจีน เป็นเพียงการประมาณการภายใต้สภาวะปกติ ศุลกากร สภาพอากาศ วันหยุด และความล่าช้าของผู้ขนส่งอาจทำให้ใช้เวลานานกว่านี้ ความล่าช้าเกินกว่าที่ประมาณการไว้เพียงอย่างเดียว ไม่ถือเป็นเหตุให้ต้องคืนเงินหรือชดเชยจาก SINEX"},
+    "terms.pricing_title": {"en": "Budget & pricing", "th": "งบประมาณและราคา"},
+    "terms.pricing_body": {"en": "The budget you give us on the request form covers the item's purchase price only. Shipping cost is calculated separately once your item is received and measured/weighed at our warehouse, and is not included in that budget figure.", "th": "งบประมาณที่คุณแจ้งในแบบฟอร์มครอบคลุมเฉพาะราคาสินค้าเท่านั้น ค่าจัดส่งจะคำนวณแยกต่างหากหลังจากสินค้าถึงคลังและมีการชั่ง/วัดขนาดแล้ว ไม่รวมอยู่ในตัวเลขงบประมาณดังกล่าว"},
+    "terms.cancel_title": {"en": "Cancellation & refusal", "th": "การยกเลิกและการปฏิเสธคำขอ"},
+    "terms.cancel_body": {"en": "We may decline to fulfil a request (e.g. a restricted or unavailable item) before purchase without penalty to either side. Once we've paid the seller on your behalf, that payment is generally non-refundable by SINEX, consistent with the seller's own terms.", "th": "เราอาจปฏิเสธคำขอได้ (เช่น สินค้าต้องห้ามหรือไม่มีจำหน่าย) ก่อนการซื้อ โดยไม่มีผลเสียต่อทั้งสองฝ่าย เมื่อเราชำระเงินให้ผู้ขายแทนคุณแล้ว การชำระเงินนั้นโดยทั่วไปจะไม่สามารถขอคืนจาก SINEX ได้ ตามเงื่อนไขของผู้ขายเอง"},
+    "terms.contact_title": {"en": "Questions", "th": "หากมีคำถาม"},
+    "terms.contact_body": {"en": "Message us on LINE any time before confirming an order if anything here is unclear.", "th": "ทักแชท LINE หาเราได้ทุกเมื่อก่อนยืนยันคำสั่งซื้อ หากมีข้อสงสัย"},
+    "terms.back": {"en": "Back to request form", "th": "กลับไปหน้าแจ้งความจำนงสั่งซื้อ"},
 }
 
 
@@ -661,17 +689,22 @@ def _budget_number(text):
         return None
 
 
-def quote_status(item_cost, shipping_cost, budget_text):
-    """'awaiting' (no quote yet), 'within_budget', 'over_budget', or 'quoted'
-    (priced, but the budget text didn't contain a comparable number -- e.g.
-    "flexible" -- so the admin's own judgement stands)."""
-    if item_cost is None and shipping_cost is None:
+def quote_status(item_cost, budget_text):
+    """'awaiting' (no item price yet), 'within_budget', 'over_budget', or
+    'quoted' (priced, but the budget text didn't contain a comparable
+    number -- e.g. "flexible" -- so the admin's own judgement stands).
+
+    Compares ONLY the item cost against the customer's stated budget --
+    the budget is explicitly "for the item itself" (see TRANSLATIONS'
+    request.budget/quote_shipping_note copy); shipping is quoted
+    separately once the item arrives at the warehouse and is never folded
+    into this comparison."""
+    if item_cost is None:
         return "awaiting"
-    total = (item_cost or 0) + (shipping_cost or 0)
     budget_num = _budget_number(budget_text)
     if budget_num is None:
         return "quoted"
-    return "within_budget" if total <= budget_num else "over_budget"
+    return "within_budget" if item_cost <= budget_num else "over_budget"
 
 
 app.jinja_env.globals["quote_status"] = quote_status
@@ -1310,9 +1343,11 @@ def requests_page():
 @app.route("/admin/requests/<int:request_id>/quote", methods=["POST"])
 @login_required
 def quote_request(request_id):
-    """Price a request: item cost + shipping cost, compared against the
-    customer's stated budget (quote_status(), shown on both this queue and
-    the customer's own /request/<code> revisit page)."""
+    """Price a request: item cost (compared against the customer's stated
+    budget via quote_status()) and shipping cost (quoted separately, not
+    part of the budget comparison -- shipping is only known once the item
+    reaches the warehouse). Shown on both this queue and the customer's own
+    /request/<code> revisit page."""
     db = get_db()
     req = db.execute("SELECT id FROM order_requests WHERE id = ? AND status = 'new'", (request_id,)).fetchone()
     if req is None:
@@ -1621,6 +1656,30 @@ def _request_form_values(request_row=None, customer_row=None):
     }
 
 
+def _save_request_reference_image(file, request_code):
+    """Optional reference photo on a request -- same compress/validate path
+    as an order's product image. Returns the relative static path, or None
+    if no (valid) file was given. Silently skips an unreadable/wrong-type
+    file rather than failing the whole submission over an optional field."""
+    if not file or not file.filename:
+        return None
+    ext = ALLOWED_IMAGE_TYPES.get(file.mimetype)
+    if not ext:
+        return None
+    base = os.path.join(UPLOAD_DIR, f"req_{request_code}")
+    try:
+        _compress_and_save(file, base, ext)
+    except Exception:
+        logger.warning("Could not process reference image for request %s", request_code, exc_info=True)
+        return None
+    return f"uploads/req_{request_code}.{ext}"
+
+
+@app.route("/terms", methods=["GET"])
+def terms_page():
+    return render_template("terms.html")
+
+
 @app.route("/request", methods=["GET", "POST"])
 @limiter.limit("10 per hour")
 def new_request():
@@ -1632,19 +1691,26 @@ def new_request():
         source_link = request.form.get("source_link", "").strip()
         budget = request.form.get("budget", "").strip()
         other_contact = request.form.get("other_contact", "").strip()
+        agreed_terms = request.form.get("agree_terms") == "on"
 
         if not name or not phone or not item_description:
             flash("Please fill in your name, phone number, and what you'd like to order.")
+            return render_template("request.html", request_row=None, values=request.form, submitted=False)
+        if not agreed_terms:
+            flash(t("request.agree_terms_required"))
             return render_template("request.html", request_row=None, values=request.form, submitted=False)
 
         db = get_db()
         now = datetime.utcnow().isoformat()
         customer_id = _find_or_create_customer(name, phone, address)
         request_code = secrets.token_hex(3).upper()
+        reference_image = _save_request_reference_image(request.files.get("reference_image"), request_code)
         db.execute(
             "INSERT INTO order_requests (customer_id, request_code, item_description, source_link, "
-            "budget, other_contact, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?)",
-            (customer_id, request_code, item_description, source_link, budget or None, other_contact or None, now, now),
+            "budget, other_contact, reference_image, terms_agreed_at, status, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)",
+            (customer_id, request_code, item_description, source_link, budget or None, other_contact or None,
+             reference_image, now, now, now),
         )
         db.commit()
         return redirect(url_for("view_request", request_code=request_code))

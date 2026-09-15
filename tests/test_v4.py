@@ -1,4 +1,5 @@
 """Phase 2.5: order requests, admin inbox, chat-based contact-info/reorder flows."""
+import os
 from datetime import datetime
 
 from conftest import login
@@ -35,7 +36,7 @@ def test_find_or_create_customer_blank_phone_never_merges(app_module, client):
 def test_request_submission_creates_customer_and_request(app_module, client):
     resp = client.post(
         "/request",
-        data={"name": "New Cust", "phone": "0891112222", "address": "Bangkok", "item_description": "A cool gadget"},
+        data={"name": "New Cust", "phone": "0891112222", "address": "Bangkok", "item_description": "A cool gadget", "agree_terms": "on"},
         follow_redirects=True,
     )
     assert resp.status_code == 200
@@ -47,7 +48,20 @@ def test_request_submission_creates_customer_and_request(app_module, client):
     assert req is not None
     assert req["item_description"] == "A cool gadget"
     assert req["status"] == "new"
+    assert req["terms_agreed_at"] is not None
     assert req["request_code"] in resp.get_data(as_text=True)
+
+
+def test_request_missing_terms_agreement_rejected(app_module, client):
+    resp = client.post(
+        "/request",
+        data={"name": "No Agree", "phone": "0891114444", "item_description": "Something"},
+        follow_redirects=True,
+    )
+    assert b"agree" in resp.data.lower()
+    with app_module.app.app_context():
+        count = app_module.get_db().execute("SELECT COUNT(*) FROM order_requests").fetchone()[0]
+    assert count == 0
 
 
 def test_request_reuses_existing_customer_by_phone(app_module, client):
@@ -55,7 +69,7 @@ def test_request_reuses_existing_customer_by_phone(app_module, client):
         cid = app_module._find_or_create_customer("Existing", "0899990000", "Somewhere")
     client.post(
         "/request",
-        data={"name": "Existing", "phone": "089-999-0000", "address": "Somewhere", "item_description": "Another item"},
+        data={"name": "Existing", "phone": "089-999-0000", "address": "Somewhere", "item_description": "Another item", "agree_terms": "on"},
         follow_redirects=True,
     )
     with app_module.app.app_context():
@@ -77,7 +91,7 @@ def test_request_missing_fields_rejected(app_module, client):
 def test_view_request_edit_updates_customer_and_request(app_module, client):
     client.post(
         "/request",
-        data={"name": "Edit Me", "phone": "0812223333", "item_description": "First item"},
+        data={"name": "Edit Me", "phone": "0812223333", "item_description": "First item", "agree_terms": "on"},
         follow_redirects=True,
     )
     with app_module.app.app_context():
@@ -106,13 +120,45 @@ def test_view_request_not_found(app_module, client):
     assert resp.status_code == 404
 
 
+def test_request_reference_image_saved_and_compressed(app_module, client):
+    import io
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (50, 50), color="red").save(buf, format="JPEG")
+    buf.seek(0)
+
+    resp = client.post(
+        "/request",
+        data={
+            "name": "Photo Cust", "phone": "0877771111", "item_description": "Item with photo",
+            "agree_terms": "on", "reference_image": (buf, "item.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    with app_module.app.app_context():
+        req = app_module.get_db().execute(
+            "SELECT * FROM order_requests WHERE customer_id = (SELECT id FROM customers WHERE phone_normalized = '0877771111')"
+        ).fetchone()
+    assert req["reference_image"] is not None
+    assert os.path.exists(os.path.join(app_module.UPLOAD_DIR, os.path.basename(req["reference_image"])))
+
+
+def test_terms_page_renders(app_module, client):
+    resp = client.get("/terms")
+    assert resp.status_code == 200
+    assert b"SINEX" in resp.data
+
+
 # ---- /admin/requests conversion ---------------------------------------------
 
 def test_admin_converts_request_to_order(app_module, client):
     login(client)
     client.post(
         "/request",
-        data={"name": "Convert Me", "phone": "0855556666", "item_description": "Cool thing", "source_link": "https://example.com/item"},
+        data={"name": "Convert Me", "phone": "0855556666", "item_description": "Cool thing", "source_link": "https://example.com/item", "agree_terms": "on"},
         follow_redirects=True,
     )
     with app_module.app.app_context():
@@ -138,7 +184,7 @@ def test_admin_converts_request_to_order(app_module, client):
 
 def test_admin_convert_rejects_bad_mode(app_module, client):
     login(client)
-    client.post("/request", data={"name": "X", "phone": "0800001111", "item_description": "Y"}, follow_redirects=True)
+    client.post("/request", data={"name": "X", "phone": "0800001111", "item_description": "Y", "agree_terms": "on"}, follow_redirects=True)
     with app_module.app.app_context():
         req = app_module.get_db().execute("SELECT * FROM order_requests").fetchone()
 
@@ -147,6 +193,41 @@ def test_admin_convert_rejects_bad_mode(app_module, client):
     with app_module.app.app_context():
         still_new = app_module.get_db().execute("SELECT status FROM order_requests WHERE id = ?", (req["id"],)).fetchone()
     assert still_new["status"] == "new"
+
+
+# ---- Budget/quote: item cost only, shipping never counted -------------------
+
+def test_quote_status_ignores_shipping_cost(app_module, client):
+    # Item alone is within the stated budget -- adding a large shipping cost
+    # must NOT flip this to "over_budget"; the budget covers the item only.
+    assert app_module.quote_status(900, "~1500") == "within_budget"
+    assert app_module.quote_status(1600, "~1500") == "over_budget"
+    assert app_module.quote_status(None, "~1500") == "awaiting"
+    assert app_module.quote_status(900, "flexible, no real limit") == "quoted"
+
+
+def test_admin_quote_request_sets_item_and_shipping_cost(app_module, client):
+    login(client)
+    client.post(
+        "/request",
+        data={"name": "Quote Me", "phone": "0866667777", "item_description": "Thing", "budget": "1000", "agree_terms": "on"},
+        follow_redirects=True,
+    )
+    with app_module.app.app_context():
+        req = app_module.get_db().execute("SELECT * FROM order_requests").fetchone()
+
+    resp = client.post(
+        f"/admin/requests/{req['id']}/quote",
+        data={"item_cost": "900", "shipping_cost": "250"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    with app_module.app.app_context():
+        updated = app_module.get_db().execute("SELECT * FROM order_requests WHERE id = ?", (req["id"],)).fetchone()
+    assert updated["item_cost"] == 900
+    assert updated["shipping_cost"] == 250
+    # Item (900) is within the 1000 budget even though item+shipping (1150) isn't.
+    assert app_module.quote_status(updated["item_cost"], updated["budget"]) == "within_budget"
 
 
 # ---- LINE chat: NEW ORDER reorder flow --------------------------------------
@@ -270,7 +351,7 @@ def test_admin_requests_page_loads(app_module, client):
 
 def test_nav_badge_counts_reflect_pending_state(app_module, client):
     login(client)
-    client.post("/request", data={"name": "Badge", "phone": "0811119999", "item_description": "x"}, follow_redirects=True)
+    client.post("/request", data={"name": "Badge", "phone": "0811119999", "item_description": "x", "agree_terms": "on"}, follow_redirects=True)
     resp = client.get("/admin/orders")
     assert b"Requests" in resp.data
     # badge shows "1" somewhere near the Requests link

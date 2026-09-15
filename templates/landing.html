@@ -65,12 +65,12 @@
   <p class="mb-3 mt-7 text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('landing.trust_title') }}</p>
   <div class="reveal mb-2.5 grid grid-cols-2 gap-2.5">
     <div class="card p-3.5">
-      <p class="text-lg font-extrabold">[PLACEHOLDER]</p>
-      <p class="mt-0.5 text-xs" style="color: var(--text-muted);">shipments delivered</p>
+      <p class="text-lg font-extrabold">100+</p>
+      <p class="mt-0.5 text-xs" style="color: var(--text-muted);">{{ t('landing.stat_shipments_label') }}</p>
     </div>
     <div class="card p-3.5">
-      <p class="text-lg font-extrabold">[PLACEHOLDER]</p>
-      <p class="mt-0.5 text-xs" style="color: var(--text-muted);">years shipping China → Thailand</p>
+      <p class="text-lg font-extrabold">2025</p>
+      <p class="mt-0.5 text-xs" style="color: var(--text-muted);">{{ t('landing.stat_since_label') }}</p>
     </div>
   </div>
   <div class="reveal card flex items-center gap-3 p-3.5">
@@ -82,6 +82,10 @@
       <p class="mt-0.5 text-xs" style="color: var(--text-muted);">{{ t('landing.trust_line_body') }}</p>
     </div>
   </div>
+
+  <p class="mt-10 text-center text-[11px]" style="color: var(--text-faint2);">
+    <a href="{{ url_for('admin_index') }}" style="color: inherit;">staff</a>
+  </p>
 </div>
 
 <div class="sticky bottom-0 px-4 pb-5 pt-3" style="background: linear-gradient(to top, var(--bg-page) 65%, transparent);">

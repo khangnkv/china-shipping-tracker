@@ -80,28 +80,28 @@
     var budgetNum = form.dataset.budgetNumber ? parseFloat(form.dataset.budgetNumber) : null;
     if (!itemInput || !shipInput || !totalEl || !chipEl) return;
     function recompute() {
+      // Mirrors quote_status() (app.py) exactly: no item cost yet -> always
+      // "awaiting", regardless of shipping; the budget covers the ITEM
+      // only, so shipping shows in the total but never enters the verdict.
       var item = parseFloat(itemInput.value);
       var ship = parseFloat(shipInput.value);
       var hasItem = !isNaN(item), hasShip = !isNaN(ship);
-      if (!hasItem && !hasShip) {
-        totalEl.textContent = "";
+      var total = (hasItem ? item : 0) + (hasShip ? ship : 0);
+      totalEl.textContent = (hasItem || hasShip) ? ("Total ฿" + total.toLocaleString(undefined, { maximumFractionDigits: 0 })) : "";
+      if (!hasItem) {
         chipEl.textContent = "Awaiting quote";
         chipEl.style.background = "var(--border-soft)";
         chipEl.style.color = "var(--text-muted)";
-        return;
-      }
-      var total = (hasItem ? item : 0) + (hasShip ? ship : 0);
-      totalEl.textContent = "Total ฿" + total.toLocaleString(undefined, { maximumFractionDigits: 0 });
-      if (budgetNum === null || isNaN(budgetNum)) {
+      } else if (budgetNum === null || isNaN(budgetNum)) {
         chipEl.textContent = "Quoted";
         chipEl.style.background = "var(--border-soft)";
         chipEl.style.color = "var(--text-secondary)";
-      } else if (total <= budgetNum) {
-        chipEl.textContent = "Within budget";
+      } else if (item <= budgetNum) {
+        chipEl.textContent = "Item within budget";
         chipEl.style.background = "#ecfdf5";
         chipEl.style.color = "#059669";
       } else {
-        chipEl.textContent = "Over budget";
+        chipEl.textContent = "Item over budget";
         chipEl.style.background = "#fef2f2";
         chipEl.style.color = "#dc2626";
       }

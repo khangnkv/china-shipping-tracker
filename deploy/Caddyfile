@@ -1,4 +1,7 @@
 # Replace yourdomain.com with your real domain. Caddy auto-issues & renews TLS.
+# List multiple hostnames comma-separated on one site block (e.g. when
+# renaming the public URL but keeping an old one alive) -- see the deployed
+# /etc/caddy/Caddyfile on the production host for a live example.
 yourdomain.com {
 	reverse_proxy 127.0.0.1:5000
 	encode gzip
