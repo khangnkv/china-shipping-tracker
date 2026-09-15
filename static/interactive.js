@@ -199,12 +199,20 @@
       });
     }
 
-    function showStep(n) {
+    // steer=true moves focus/scroll to the new step -- used for an actual
+    // Next/Back/Enter navigation, and for the initial mount ONLY when a
+    // server-side validation bounce lands the visitor past step 1 (they need
+    // to see the problem field immediately). A plain fresh page load stays
+    // at step 1 with steer=false: audit review caught the original version
+    // grabbing focus and smooth-scrolling on every load, including a normal
+    // first visit, before the visitor had read anything on the page.
+    function showStep(n, steer) {
       steps.forEach(function (el) {
         el.hidden = Number(el.dataset.wizardStep) !== n;
       });
       current = n;
       setTracker(n);
+      if (!steer) return;
       var target = stepEl(n);
       var focusable = target && target.querySelector("input:not([type=hidden]), textarea, select");
       if (focusable) focusable.focus({ preventScroll: true });
@@ -232,7 +240,7 @@
         back.type = "button";
         back.className = "btn flex-1 justify-center";
         back.textContent = backLabel;
-        back.addEventListener("click", function () { showStep(n - 1); });
+        back.addEventListener("click", function () { showStep(n - 1, true); });
         nav.appendChild(back);
       }
       if (n < last) {
@@ -240,7 +248,7 @@
         next.type = "button";
         next.className = "btn-primary flex-1 justify-center";
         next.textContent = nextLabel;
-        next.addEventListener("click", function () { if (validateStep(n)) showStep(n + 1); });
+        next.addEventListener("click", function () { if (validateStep(n)) showStep(n + 1, true); });
         nav.appendChild(next);
       }
       if (nav.childNodes.length) {
@@ -258,12 +266,12 @@
       if (e.key !== "Enter" || e.target.tagName === "TEXTAREA") return;
       if (current >= last) return;
       e.preventDefault();
-      if (validateStep(current)) showStep(current + 1);
+      if (validateStep(current)) showStep(current + 1, true);
     });
 
     var current = 1;
     var startAt = Number(form.dataset.wizardStart) || 1;
-    showStep(Math.min(Math.max(startAt, 1), last));
+    showStep(Math.min(Math.max(startAt, 1), last), startAt > 1);
   });
 
   // ---- Landing page scroll-reveal ---------------------------------------
