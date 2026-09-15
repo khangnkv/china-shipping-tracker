@@ -65,6 +65,53 @@
 <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
 {%- elif name == "bar-chart" -%}
 <path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+{%- elif name == "sun" -%}
+<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+{%- elif name == "moon" -%}
+<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+{%- elif name == "monitor" -%}
+<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>
+{%- elif name == "languages" -%}
+<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>
+{%- elif name == "arrow-right" -%}
+<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
 {%- endif -%}
 </svg>
+{%- endmacro %}
+
+{# ---- Theme switch: 3-way Light/Auto/Dark pill. Persists via a cookie set
+   by /set-theme/<mode> (see app.py); "Auto" clears the cookie so the CSS
+   @media(prefers-color-scheme) query decides. Requires theme_pref in
+   context -- import this macro "with context". #}
+{% macro theme_switch() -%}
+<div class="inline-flex items-center gap-0.5 rounded-full p-0.5" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+  {% for mode, ic, label in [('light', 'sun', 'Light'), ('auto', 'monitor', 'Auto'), ('dark', 'moon', 'Dark')] %}
+  <a href="{{ url_for('set_theme', mode=mode) }}"
+     class="flex h-7 w-7 items-center justify-center rounded-full transition"
+     style="{% if theme_pref == mode %}background: var(--brand); color: #fff;{% else %}color: var(--text-muted);{% endif %}"
+     title="{{ label }}" aria-label="{{ label }} theme">{{ icon(ic, 'h-3.5 w-3.5') }}</a>
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+{# ---- Language switch: EN / ไทย pill for customer-facing pages. Persists
+   via /set-locale/<lang>. Requires `locale` in context -- import "with
+   context". Translated strings come from the t() global (app.py). #}
+{% macro lang_switch() -%}
+<div class="inline-flex items-center gap-0.5 rounded-full p-0.5" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+  <a href="{{ url_for('set_locale', lang='en') }}" class="rounded-full px-2.5 py-1 text-xs font-bold transition"
+     style="{% if locale == 'en' %}background: var(--brand); color: #fff;{% else %}color: var(--text-muted);{% endif %}">EN</a>
+  <a href="{{ url_for('set_locale', lang='th') }}" class="rounded-full px-2.5 py-1 text-xs font-semibold transition"
+     style="{% if locale == 'th' %}background: var(--brand); color: #fff;{% else %}color: var(--text-muted);{% endif %}">ไทย</a>
+</div>
+{%- endmacro %}
+
+{# ---- Free Google Translate deep-link for admin-side Thai/mixed text
+   (Inbox messages, request item descriptions) -- separate from the paid
+   OpenRouter path the bot itself uses. #}
+{% macro translate_link(text) -%}
+<a href="{{ translate_url(text) }}" target="_blank" rel="noopener noreferrer"
+   class="inline-flex items-center gap-1 text-xs font-medium hover:underline" style="color: var(--text-faint);">
+  {{ icon('languages', 'h-3 w-3') }}Translate
+</a>
 {%- endmacro %}

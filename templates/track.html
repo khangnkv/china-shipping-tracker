@@ -1,40 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="en"{% if theme_attr %} data-theme="{{ theme_attr }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Track your order</title>
+<title>Track your order — SINEX</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
-{% from "_macros.html" import icon, status_badge %}
-<body class="min-h-screen bg-slate-50 text-slate-900">
+{% from "_macros.html" import icon, status_badge, theme_switch, lang_switch with context %}
+<body class="min-h-screen">
 
 {% if order is none %}
   <div class="flex min-h-screen flex-col items-center justify-center px-4">
     <div class="w-full max-w-sm text-center">
-      <div class="mx-auto mb-3 flex justify-center text-slate-300">{{ icon('alert-circle', 'h-10 w-10') }}</div>
-      <h1 class="text-lg font-bold text-slate-900">Order not found</h1>
-      <p class="mt-1 text-sm text-slate-500">Please check your tracking code and try again.</p>
+      <div class="mx-auto mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('alert-circle', 'h-10 w-10') }}</div>
+      <h1 class="text-lg font-bold">{{ t('track.not_found_title') }}</h1>
+      <p class="mt-1 text-sm" style="color: var(--text-muted);">{{ t('track.not_found_body') }}</p>
     </div>
   </div>
 {% else %}
   {% set cur = STATUS_ORDER.index(order.status) if order.status in STATUS_ORDER else 0 %}
 
   {# Header #}
-  <div class="bg-white px-4 pb-5 pt-6 shadow-sm">
+  <div class="px-4 pb-5 pt-6 shadow-sm" style="background: var(--bg-card);">
     <div class="mx-auto max-w-md">
-      <div class="flex items-center gap-2">
-        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900">{{ icon('package', 'h-4 w-4 text-teal-400') }}</span>
-        <span class="text-sm font-semibold text-slate-900">Shipping Tracker</span>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg" style="background: var(--brand);">
+            <svg width="16" height="16" viewBox="0 0 40 40" fill="none" aria-hidden="true"><ellipse cx="20" cy="20" rx="18" ry="7" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-dasharray="3 2.4" transform="rotate(-18 20 20)" opacity="0.85"/><circle cx="20" cy="20" r="12.5" fill="#ffffff"/></svg>
+          </span>
+          <span class="text-sm font-semibold">SINEX</span>
+        </div>
+        <div class="flex items-center gap-1.5">{{ lang_switch() }}{{ theme_switch() }}</div>
       </div>
       <div class="mt-4">
-        <p class="text-xs text-slate-400">Tracking code</p>
-        <h1 class="font-mono text-lg font-bold text-slate-900">{{ order.link_code }}</h1>
+        <p class="text-xs" style="color: var(--text-faint);">{{ t('track.title') }}</p>
+        <h1 class="font-mono text-lg font-bold">{{ order.link_code }}</h1>
       </div>
       <div class="mt-3 flex items-center justify-between gap-3">
         <div>
-          <p class="text-xs text-slate-400">Recipient</p>
-          <p class="text-sm font-medium text-slate-900">{{ order.customer_name or "—" }}</p>
+          <p class="text-xs" style="color: var(--text-faint);">{{ t('track.recipient') }}</p>
+          <p class="text-sm font-medium">{{ order.customer_name or "—" }}</p>
         </div>
         {{ status_badge(order.status) }}
       </div>
@@ -45,7 +50,7 @@
     {% if order.status == 'delivered' %}
     <div class="mb-4 flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-3">
       <span class="shrink-0 text-green-600">{{ icon('package', 'h-5 w-5') }}</span>
-      <p class="text-sm font-semibold text-green-700">Your parcel has been delivered!</p>
+      <p class="text-sm font-semibold text-green-700">{{ t('track.delivered') }}</p>
     </div>
     {% endif %}
 
@@ -54,55 +59,54 @@
       <span class="shrink-0 text-blue-600">{{ icon('truck', 'h-5 w-5') }}</span>
       <div>
         <p class="text-xs font-medium text-blue-600">{{ order.local_carrier or 'Local courier' }}</p>
-        <p class="font-mono text-sm font-semibold text-slate-900">{{ order.local_tracking_no }}</p>
+        <p class="font-mono text-sm font-semibold">{{ order.local_tracking_no }}</p>
       </div>
     </div>
     {% endif %}
 
     {% if order.china_tracking_no %}
-    <div class="mb-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <span class="shrink-0 text-slate-500">{{ icon('truck', 'h-5 w-5') }}</span>
+    <div class="mb-4 flex items-center gap-3 rounded-xl p-3" style="border: 1px solid var(--border); background: var(--bg-card-soft);">
+      <span class="shrink-0" style="color: var(--text-muted);">{{ icon('truck', 'h-5 w-5') }}</span>
       <div class="min-w-0 flex-1">
-        <p class="text-xs font-medium text-slate-500">China → warehouse tracking</p>
-        <p class="font-mono text-sm font-semibold text-slate-900">{{ order.china_tracking_no }}</p>
+        <p class="text-xs font-medium" style="color: var(--text-muted);">{{ t('track.china_leg') }}</p>
+        <p class="font-mono text-sm font-semibold">{{ order.china_tracking_no }}</p>
       </div>
       {% if china_track_url %}
       <a href="{{ china_track_url }}" target="_blank" rel="noopener noreferrer"
-         class="shrink-0 text-xs font-medium text-blue-600 hover:underline">Track →</a>
+         class="shrink-0 text-xs font-medium hover:underline">Track →</a>
       {% endif %}
     </div>
     {% endif %}
 
     {# Timeline #}
     <div class="card p-5">
-      <h2 class="mb-4 text-sm font-semibold text-slate-900">Tracking timeline</h2>
+      <h2 class="mb-4 text-sm font-semibold">{{ t('track.timeline') }}</h2>
       <div>
         {% for s in STATUS_ORDER %}
         {% set done = loop.index0 <= cur %}
         {% set is_current = loop.index0 == cur %}
         <div class="flex gap-3">
           <div class="flex flex-col items-center">
-            <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold
-                        {{ 'bg-teal-50 text-teal-700' if done else 'bg-slate-100 text-slate-300' }}
-                        {{ 'ring-4 ring-teal-100' if is_current else '' }}">
+            <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                 style="{% if is_current %}background: var(--brand); color: #fff; box-shadow: 0 0 0 4px var(--brand-tint-border);{% elif done %}background: var(--brand-tint-bg); color: var(--brand-text);{% else %}background: var(--border-soft); color: var(--text-faint2);{% endif %}">
               {{ loop.index if done else '' }}
             </div>
             {% if not loop.last %}
-            <div class="w-0.5 flex-1 {{ 'bg-teal-400' if loop.index0 < cur else 'bg-slate-100' }}" style="min-height:32px"></div>
+            <div class="w-0.5 flex-1" style="min-height:32px; background: {{ 'var(--brand)' if loop.index0 < cur else 'var(--border-soft)' }};"></div>
             {% endif %}
           </div>
           <div class="flex-1 {{ 'pb-4' if not loop.last else '' }}">
             <div class="flex items-start justify-between gap-2">
               <div>
-                <p class="text-sm font-medium {{ 'text-slate-900' if done else 'text-slate-400' }}">{{ CUSTOMER_STATUS[s] }}</p>
-                <p class="text-xs {{ 'text-slate-500' if done else 'text-slate-300' }}">{{ CUSTOMER_STATUS_TH[s] }}</p>
+                <p class="text-sm font-medium" style="color: {{ 'var(--text)' if done else 'var(--text-faint2)' }};">{{ CUSTOMER_STATUS[s] }}</p>
+                <p class="text-xs" style="color: {{ 'var(--text-muted)' if done else 'var(--text-faint2)' }};">{{ CUSTOMER_STATUS_TH[s] }}</p>
               </div>
               {% if done and stage_times.get(s) %}
-              <span class="shrink-0 text-xs text-slate-400">{{ stage_times[s][:10] }}</span>
+              <span class="shrink-0 text-xs" style="color: var(--text-faint);">{{ stage_times[s][:10] }}</span>
               {% endif %}
             </div>
             {% if is_current and order.status != 'shipped' %}
-            <p class="mt-1 text-xs font-medium text-teal-600">Current status</p>
+            <p class="mt-1 text-xs font-medium" style="color: var(--brand-text);">{{ t('track.current') }}</p>
             {% endif %}
           </div>
         </div>
@@ -114,19 +118,19 @@
     {% if order.item_image or order.item_desc_en or order.item_desc_th %}
     <div class="card mt-4 p-4">
       <div class="flex items-center gap-2">
-        <span class="text-slate-400">{{ icon('map-pin') }}</span>
-        <h3 class="text-sm font-semibold text-slate-900">Parcel details</h3>
+        <span style="color: var(--text-faint);">{{ icon('map-pin') }}</span>
+        <h3 class="text-sm font-semibold">{{ t('track.parcel_details') }}</h3>
       </div>
       {% if order.item_image %}
-      <img src="{{ url_for('static', filename=order.item_image) }}" alt="your item" class="mt-3 w-full rounded-lg border border-slate-200">
+      <img src="{{ url_for('static', filename=order.item_image) }}" alt="your item" class="mt-3 w-full rounded-lg" style="border: 1px solid var(--border);">
       {% endif %}
       {% if order.item_desc_en or order.item_desc_th %}
       <div class="mt-3 space-y-2">
         {% if order.item_desc_en %}
-        <div class="flex justify-between gap-2"><span class="text-xs text-slate-400">Item</span><span class="text-right text-sm font-medium text-slate-900">{{ order.item_desc_en }}</span></div>
+        <div class="flex justify-between gap-2"><span class="text-xs" style="color: var(--text-faint);">Item</span><span class="text-right text-sm font-medium">{{ order.item_desc_en }}</span></div>
         {% endif %}
         {% if order.item_desc_th %}
-        <div class="flex justify-between gap-2"><span class="text-xs text-slate-400">รายการ</span><span class="text-right text-sm font-medium text-slate-900">{{ order.item_desc_th }}</span></div>
+        <div class="flex justify-between gap-2"><span class="text-xs" style="color: var(--text-faint);">รายการ</span><span class="text-right text-sm font-medium">{{ order.item_desc_th }}</span></div>
         {% endif %}
       </div>
       {% endif %}
@@ -136,9 +140,9 @@
     {% if LINE_CONTACT %}
     <a href="https://line.me/ti/p/~{{ LINE_CONTACT.lstrip('@') }}" target="_blank" rel="noopener noreferrer"
        class="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#05b04c]">
-      {{ icon('message-circle', 'h-5 w-5') }} Contact shop on LINE
+      {{ icon('message-circle', 'h-5 w-5') }} {{ t('track.contact_line') }}
     </a>
-    <p class="mt-3 text-center text-xs text-slate-400">{{ LINE_CONTACT }}</p>
+    <p class="mt-3 text-center text-xs" style="color: var(--text-faint);">{{ LINE_CONTACT }}</p>
     {% endif %}
   </div>
 {% endif %}

@@ -70,6 +70,15 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 VALID_MODES = {"รถ", "เรือ"}
 ALLOWED_IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
+# Theme: cookie holds an explicit "light"/"dark" choice; "auto" (the default,
+# same as no cookie at all) means "follow the OS" via the @media query in
+# tailwind.input.css -- see inject_theme_and_locale() and set_theme() below.
+THEME_COOKIE = "theme"
+VALID_THEMES = {"light", "dark", "auto"}
+LOCALE_COOKIE = "locale"
+VALID_LOCALES = {"en", "th"}
+COOKIE_MAX_AGE = 60 * 60 * 24 * 365  # 1 year; cleared by the browser/user clearing cookies
+
 # Max long-edge (px) for the stored full image and the list/carousel thumbnail.
 IMAGE_MAX_DIM = 1600
 THUMB_MAX_DIM = 400
@@ -266,6 +275,12 @@ def init_db():
     # 'bot' (automated) vs 'admin' (typed by a human in /admin/inbox) --
     # only 'admin' outbound replies count toward the 15-min handoff window.
     _add_columns(db, "messages", ["source TEXT NOT NULL DEFAULT 'bot'"])
+    # Budget/quote workflow: customer states a free-text budget (and an
+    # optional alternate contact) on /request; the admin prices the item
+    # against it on /admin/requests. See _quote_status().
+    _add_columns(db, "order_requests", [
+        "budget TEXT", "other_contact TEXT", "item_cost REAL", "shipping_cost REAL",
+    ])
 
     # Backfill phone_normalized for any rows that predate the column.
     for row in db.execute(
@@ -513,6 +528,166 @@ def _nav_badge_counts():
     return {"pending_requests_count": pending_requests, "flagged_threads_count": flagged_threads}
 
 
+@app.context_processor
+def inject_theme_and_locale():
+    """Every template gets theme_pref (the raw cookie value, for highlighting
+    the active option in the switch), theme_attr (None for "auto" -- leaves
+    data-theme unset so the CSS @media query decides -- or "light"/"dark" to
+    force it), and locale ("en"/"th", customer-facing pages only)."""
+    theme_pref = request.cookies.get(THEME_COOKIE, "auto")
+    if theme_pref not in VALID_THEMES:
+        theme_pref = "auto"
+    locale = request.cookies.get(LOCALE_COOKIE, "en")
+    if locale not in VALID_LOCALES:
+        locale = "en"
+    return {
+        "theme_pref": theme_pref,
+        "theme_attr": theme_pref if theme_pref in ("light", "dark") else None,
+        "locale": locale,
+    }
+
+
+@app.route("/set-theme/<mode>")
+def set_theme(mode):
+    if mode not in VALID_THEMES:
+        mode = "auto"
+    resp = redirect(request.referrer or url_for("landing"))
+    if mode == "auto":
+        resp.delete_cookie(THEME_COOKIE, path="/")
+    else:
+        resp.set_cookie(THEME_COOKIE, mode, max_age=COOKIE_MAX_AGE, samesite="Lax", secure=not IS_DEV, path="/")
+    return resp
+
+
+@app.route("/set-locale/<lang>")
+def set_locale(lang):
+    if lang not in VALID_LOCALES:
+        lang = "en"
+    resp = redirect(request.referrer or url_for("landing"))
+    resp.set_cookie(LOCALE_COOKIE, lang, max_age=COOKIE_MAX_AGE, samesite="Lax", secure=not IS_DEV, path="/")
+    return resp
+
+
+# Small, hand-picked bilingual string table for the customer-facing pages
+# (landing/track/request) -- NOT a full i18n framework. Covers the labels
+# that exist today; anything not in the table falls back to the English
+# literal already in the template.
+TRANSLATIONS = {
+    "landing.title": {"en": "Buy anything in China. We bring it to your door in Thailand.", "th": "ซื้อของจากจีนอะไรก็ได้ เราส่งถึงบ้านคุณในไทย"},
+    "landing.subtitle": {"en": "Tell us the item and your budget — we quote the real cost before you pay a baht, then track it all the way home.", "th": "บอกเราว่าอยากได้อะไรและงบเท่าไหร่ เราจะแจ้งราคาจริงก่อนที่คุณจะจ่ายเงิน แล้วติดตามพัสดุได้จนถึงบ้าน"},
+    "landing.cta": {"en": "Start your order", "th": "เริ่มสั่งซื้อ"},
+    "landing.cta_note": {"en": "Takes about 2 minutes — no account needed.", "th": "ใช้เวลาประมาณ 2 นาที ไม่ต้องสมัครสมาชิก"},
+    "landing.how_it_works": {"en": "How it works", "th": "ขั้นตอนการสั่งซื้อ"},
+    "landing.step1_title": {"en": "Describe your item & budget", "th": "บอกรายละเอียดสินค้าและงบประมาณ"},
+    "landing.step1_body": {"en": "Paste a product link or describe it, and tell us roughly what you want to spend.", "th": "วางลิงก์สินค้าหรืออธิบายสินค้า พร้อมบอกงบประมาณคร่าวๆ"},
+    "landing.step2_title": {"en": "We quote the real cost", "th": "เราแจ้งราคาจริง"},
+    "landing.step2_body": {"en": "Item price + shipping, checked against your budget — no hidden fees added later.", "th": "ราคาสินค้า + ค่าส่ง เทียบกับงบของคุณ ไม่มีค่าใช้จ่ายแอบแฝงภายหลัง"},
+    "landing.step3_title": {"en": "You confirm on LINE", "th": "ยืนยันผ่าน LINE"},
+    "landing.step3_body": {"en": "A real person messages you to confirm before anything ships.", "th": "มีเจ้าหน้าที่จริงทักมายืนยันก่อนจัดส่งทุกครั้ง"},
+    "landing.step4_title": {"en": "We ship & you track", "th": "จัดส่งและติดตามสถานะได้"},
+    "landing.step4_body": {"en": "Follow it from the China warehouse to your door, step by step.", "th": "ติดตามพัสดุตั้งแต่คลังจีนจนถึงหน้าบ้านคุณทีละขั้นตอน"},
+    "landing.trust_title": {"en": "Why customers trust SINEX", "th": "ทำไมลูกค้าไว้วางใจ SINEX"},
+    "landing.trust_line_title": {"en": "A real person answers on LINE", "th": "มีคนจริงตอบแชท LINE"},
+    "landing.trust_line_body": {"en": "Not a bot maze — message us any time you have a question.", "th": "ไม่ใช่บอทวนลูป ทักมาได้ทุกเมื่อที่มีคำถาม"},
+    "track.title": {"en": "Tracking code", "th": "รหัสติดตามพัสดุ"},
+    "track.recipient": {"en": "Recipient", "th": "ผู้รับ"},
+    "track.timeline": {"en": "Tracking timeline", "th": "ไทม์ไลน์การจัดส่ง"},
+    "track.current": {"en": "Current status", "th": "สถานะปัจจุบัน"},
+    "track.parcel_details": {"en": "Parcel details", "th": "รายละเอียดพัสดุ"},
+    "track.china_leg": {"en": "China → warehouse tracking", "th": "เลขติดตามจากจีน → คลังสินค้า"},
+    "track.contact_line": {"en": "Contact shop on LINE", "th": "ติดต่อร้านทาง LINE"},
+    "track.delivered": {"en": "Your parcel has been delivered!", "th": "พัสดุของคุณถึงมือแล้ว!"},
+    "track.not_found_title": {"en": "Order not found", "th": "ไม่พบคำสั่งซื้อ"},
+    "track.not_found_body": {"en": "Please check your tracking code and try again.", "th": "กรุณาตรวจสอบรหัสติดตามแล้วลองใหม่อีกครั้ง"},
+    "request.title": {"en": "Request an order", "th": "แจ้งความจำนงสั่งซื้อ"},
+    "request.title_submitted": {"en": "Your order request", "th": "คำขอสั่งซื้อของคุณ"},
+    "request.subtitle": {"en": "Tell us what you'd like to order and how to reach you — we'll take it from there.", "th": "บอกเราว่าอยากสั่งอะไรและติดต่อคุณได้ทางไหน ที่เหลือเราจัดการเอง"},
+    "request.name": {"en": "Your name", "th": "ชื่อของคุณ"},
+    "request.phone": {"en": "Phone number", "th": "เบอร์โทรศัพท์"},
+    "request.address": {"en": "Delivery address", "th": "ที่อยู่จัดส่ง"},
+    "request.address_optional": {"en": "(optional for now)", "th": "(ยังไม่จำเป็นตอนนี้)"},
+    "request.item": {"en": "What would you like to order?", "th": "อยากสั่งอะไร?"},
+    "request.link": {"en": "Product link", "th": "ลิงก์สินค้า"},
+    "request.optional": {"en": "(optional)", "th": "(ไม่บังคับ)"},
+    "request.budget": {"en": "Your budget", "th": "งบประมาณของคุณ"},
+    "request.budget_placeholder": {"en": "e.g. around ฿2,000 — flexible", "th": "เช่น ประมาณ ๒,๐๐๐ บาท ยืดหยุ่นได้"},
+    "request.budget_hint": {"en": "Helps us find the right match before we message you back.", "th": "ช่วยให้เราหาสินค้าที่เหมาะสมก่อนทักกลับไปหาคุณ"},
+    "request.other_contact": {"en": "Other contact", "th": "ช่องทางติดต่ออื่น"},
+    "request.other_contact_placeholder": {"en": "LINE: @user, email, or a Facebook link", "th": "LINE: @user, อีเมล หรือลิงก์ Facebook"},
+    "request.other_contact_hint": {"en": "In case we need to reach you a different way about pricing.", "th": "เผื่อเราต้องติดต่อคุณช่องทางอื่นเรื่องราคา"},
+    "request.submit": {"en": "Submit request", "th": "ส่งคำขอ"},
+    "request.save": {"en": "Save changes", "th": "บันทึกการแก้ไข"},
+    "request.line_cta": {"en": "Message us on LINE", "th": "ทักแชท LINE"},
+    "request.line_hint": {"en": "Send your phone number on LINE and we'll link this to your chat automatically — no extra code needed.", "th": "ส่งเบอร์โทรของคุณทาง LINE แล้วเราจะเชื่อมกับแชทให้อัตโนมัติ ไม่ต้องใช้รหัสเพิ่ม"},
+    "request.bookmark": {"en": "Bookmark this page to check back", "th": "บันทึกหน้านี้ไว้เพื่อกลับมาดูภายหลัง"},
+    "request.quote_title": {"en": "Your quote", "th": "ใบเสนอราคาของคุณ"},
+    "request.quote_item": {"en": "Item cost", "th": "ค่าสินค้า"},
+    "request.quote_shipping": {"en": "Shipping", "th": "ค่าส่ง"},
+    "request.quote_total": {"en": "Total", "th": "ยอดรวม"},
+    "request.quote_budget": {"en": "Your budget", "th": "งบของคุณ"},
+    "request.quote_hint": {"en": "We'll message you on LINE to confirm before shipping.", "th": "เราจะทักไลน์เพื่อยืนยันก่อนจัดส่ง"},
+    "request.quote_within": {"en": "Within budget", "th": "อยู่ในงบ"},
+    "request.quote_over": {"en": "Over budget", "th": "เกินงบ"},
+    "request.quote_awaiting": {"en": "Awaiting quote", "th": "รอแจ้งราคา"},
+    "request.not_found_title": {"en": "Request not found", "th": "ไม่พบคำขอ"},
+    "request.not_found_body": {"en": "Please check your link and try again.", "th": "กรุณาตรวจสอบลิงก์แล้วลองใหม่อีกครั้ง"},
+}
+
+
+def t(key):
+    return TRANSLATIONS.get(key, {}).get(g_locale_or_en(), TRANSLATIONS.get(key, {}).get("en", key))
+
+
+def g_locale_or_en():
+    locale = request.cookies.get(LOCALE_COOKIE, "en")
+    return locale if locale in VALID_LOCALES else "en"
+
+
+app.jinja_env.globals["t"] = t
+
+
+def _budget_number(text):
+    """First number found in a free-text budget string ('~฿1,500' -> 1500.0),
+    or None when nothing parses -- the customer's budget is intentionally
+    free-text, so this is a best-effort read, not a hard requirement."""
+    if not text:
+        return None
+    match = re.search(r"[\d,]+(?:\.\d+)?", text)
+    if not match:
+        return None
+    try:
+        return float(match.group(0).replace(",", ""))
+    except ValueError:
+        return None
+
+
+def quote_status(item_cost, shipping_cost, budget_text):
+    """'awaiting' (no quote yet), 'within_budget', 'over_budget', or 'quoted'
+    (priced, but the budget text didn't contain a comparable number -- e.g.
+    "flexible" -- so the admin's own judgement stands)."""
+    if item_cost is None and shipping_cost is None:
+        return "awaiting"
+    total = (item_cost or 0) + (shipping_cost or 0)
+    budget_num = _budget_number(budget_text)
+    if budget_num is None:
+        return "quoted"
+    return "within_budget" if total <= budget_num else "over_budget"
+
+
+app.jinja_env.globals["quote_status"] = quote_status
+
+
+def translate_url(text):
+    """Genuinely-free Google Translate deep link (no API key/cost) for the
+    admin to read a Thai/mixed-language message -- separate from the paid
+    OpenRouter path used for the bot's own bilingual replies."""
+    from urllib.parse import quote as urlquote
+    return f"https://translate.google.com/?sl=auto&tl=en&text={urlquote(text or '')}&op=translate"
+
+
+app.jinja_env.globals["translate_url"] = translate_url
+
+
 def _openrouter_chat_json(system_prompt, user_content, max_tokens=300):
     """POST a system+user message to OpenRouter (OpenAI-compatible chat
     completions), expecting the assistant's reply to be a JSON object.
@@ -693,7 +868,15 @@ def healthz():
 
 
 @app.route("/")
-def index():
+def landing():
+    """Customer-facing front door -- trust/marketing page with a CTA into
+    /request. The admin dashboard now lives at /admin (redirect below); it
+    used to be what '/' did, back when this app had no public front door."""
+    return render_template("landing.html")
+
+
+@app.route("/admin")
+def admin_index():
     return redirect(url_for("orders_page"))
 
 
@@ -1123,6 +1306,27 @@ def requests_page():
     return render_template("requests.html", pending=pending, agencies=active_agencies())
 
 
+@app.route("/admin/requests/<int:request_id>/quote", methods=["POST"])
+@login_required
+def quote_request(request_id):
+    """Price a request: item cost + shipping cost, compared against the
+    customer's stated budget (quote_status(), shown on both this queue and
+    the customer's own /request/<code> revisit page)."""
+    db = get_db()
+    req = db.execute("SELECT id FROM order_requests WHERE id = ? AND status = 'new'", (request_id,)).fetchone()
+    if req is None:
+        flash("Request not found or already processed.")
+        return redirect(url_for("requests_page"))
+    db.execute(
+        "UPDATE order_requests SET item_cost = ?, shipping_cost = ?, updated_at = ? WHERE id = ?",
+        (_parse_money(request.form.get("item_cost")), _parse_money(request.form.get("shipping_cost")),
+         datetime.utcnow().isoformat(), request_id),
+    )
+    db.commit()
+    flash("Quote saved.")
+    return redirect(url_for("requests_page"))
+
+
 @app.route("/admin/match", methods=["GET", "POST"])
 @login_required
 def match_page():
@@ -1411,6 +1615,8 @@ def _request_form_values(request_row=None, customer_row=None):
         "address": (customer_row["address"] if customer_row else ""),
         "item_description": (request_row["item_description"] if request_row else ""),
         "source_link": (request_row["source_link"] if request_row else ""),
+        "budget": (request_row["budget"] if request_row else ""),
+        "other_contact": (request_row["other_contact"] if request_row else ""),
     }
 
 
@@ -1423,6 +1629,8 @@ def new_request():
         address = request.form.get("address", "").strip()
         item_description = request.form.get("item_description", "").strip()
         source_link = request.form.get("source_link", "").strip()
+        budget = request.form.get("budget", "").strip()
+        other_contact = request.form.get("other_contact", "").strip()
 
         if not name or not phone or not item_description:
             flash("Please fill in your name, phone number, and what you'd like to order.")
@@ -1434,8 +1642,8 @@ def new_request():
         request_code = secrets.token_hex(3).upper()
         db.execute(
             "INSERT INTO order_requests (customer_id, request_code, item_description, source_link, "
-            "status, created_at, updated_at) VALUES (?, ?, ?, ?, 'new', ?, ?)",
-            (customer_id, request_code, item_description, source_link, now, now),
+            "budget, other_contact, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?)",
+            (customer_id, request_code, item_description, source_link, budget or None, other_contact or None, now, now),
         )
         db.commit()
         return redirect(url_for("view_request", request_code=request_code))
@@ -1466,6 +1674,8 @@ def view_request(request_code):
         address = request.form.get("address", "").strip()
         item_description = request.form.get("item_description", "").strip()
         source_link = request.form.get("source_link", "").strip()
+        budget = request.form.get("budget", "").strip()
+        other_contact = request.form.get("other_contact", "").strip()
         if not name or not phone or not item_description:
             flash("Please fill in your name, phone number, and what you'd like to order.")
             return redirect(url_for("view_request", request_code=request_code))
@@ -1476,8 +1686,9 @@ def view_request(request_code):
             (name, phone, _normalize_phone(phone), address or None, req["customer_id"]),
         )
         db.execute(
-            "UPDATE order_requests SET item_description = ?, source_link = ?, updated_at = ? WHERE id = ?",
-            (item_description, source_link, now, req["id"]),
+            "UPDATE order_requests SET item_description = ?, source_link = ?, budget = ?, other_contact = ?, "
+            "updated_at = ? WHERE id = ?",
+            (item_description, source_link, budget or None, other_contact or None, now, req["id"]),
         )
         db.commit()
         flash("Updated.")
@@ -1486,6 +1697,7 @@ def view_request(request_code):
     values = {
         "name": req["customer_name"], "phone": req["customer_phone"], "address": req["customer_address"] or "",
         "item_description": req["item_description"] or "", "source_link": req["source_link"] or "",
+        "budget": req["budget"] or "", "other_contact": req["other_contact"] or "",
     }
     return render_template("request.html", request_row=req, values=values, submitted=True)
 

@@ -2,29 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
+/* SINEX design tokens. Light values are the default; the dark block below
+   applies automatically when the OS prefers dark AND no explicit choice has
+   been saved (data-theme absent), and again when data-theme="dark" is set
+   explicitly (the 3-way theme switch -- see set_theme() in app.py). Same
+   "system default, explicit stamp wins" pattern as the SINEX design canvas
+   mockups this is applying. */
+:root {
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-soft: #f8fafc;
+  --border: #e2e8f0;
+  --border-soft: #f1f5f9;
+  --text: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --text-faint2: #cbd5e1;
+  --brand: #FF6A00;
+  --brand-hover: #e85d00;
+  --brand-shadow: rgba(232, 93, 0, 0.45);
+  --brand-tint-bg: #fff1e6;
+  --brand-tint-border: #ffe1cc;
+  --brand-text: #c2560a;
+  --input-border: #cbd5e1;
+  --nav-bg: rgba(255, 255, 255, 0.85);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-page: #0f1115;
+    --bg-card: #181b21;
+    --bg-card-soft: #1c2028;
+    --border: #2a2f3a;
+    --border-soft: #23272f;
+    --text: #e8eaed;
+    --text-secondary: #c7ccd6;
+    --text-muted: #9aa3b2;
+    --text-faint: #7b8494;
+    --text-faint2: #545c6b;
+    --brand: #FF6A00;
+    --brand-hover: #ff7f1f;
+    --brand-shadow: rgba(232, 93, 0, 0.45);
+    --brand-tint-bg: #2e1c10;
+    --brand-tint-border: #4a2c15;
+    --brand-text: #ff9a52;
+    --input-border: #3a4152;
+    --nav-bg: rgba(24, 27, 33, 0.85);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-page: #0f1115;
+  --bg-card: #181b21;
+  --bg-card-soft: #1c2028;
+  --border: #2a2f3a;
+  --border-soft: #23272f;
+  --text: #e8eaed;
+  --text-secondary: #c7ccd6;
+  --text-muted: #9aa3b2;
+  --text-faint: #7b8494;
+  --text-faint2: #545c6b;
+  --brand: #FF6A00;
+  --brand-hover: #ff7f1f;
+  --brand-shadow: rgba(232, 93, 0, 0.45);
+  --brand-tint-bg: #2e1c10;
+  --brand-tint-border: #4a2c15;
+  --brand-text: #ff9a52;
+  --input-border: #3a4152;
+  --nav-bg: rgba(24, 27, 33, 0.85);
+}
+
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200;
+    @apply w-full rounded-lg border px-3 py-2.5 text-sm placeholder-[color:var(--text-faint2)] focus:outline-none focus:ring-2;
+    background: var(--bg-card);
+    border-color: var(--input-border);
+    color: var(--text);
+  }
+  .input:focus {
+    border-color: var(--brand);
+    --tw-ring-color: var(--brand-tint-border);
   }
   .card {
-    @apply rounded-xl border border-slate-200 bg-white;
+    @apply rounded-xl border;
+    background: var(--bg-card);
+    border-color: var(--border);
   }
   .btn {
-    @apply inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50;
+    @apply inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition;
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--text-muted);
+  }
+  .btn:hover {
+    background: var(--border-soft);
   }
   .btn-primary {
-    @apply inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50;
+    @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition disabled:opacity-50;
+    background: var(--brand);
+  }
+  .btn-primary:hover {
+    background: var(--brand-hover);
   }
   .label {
-    @apply mb-1.5 block text-sm font-medium text-slate-700;
+    @apply mb-1.5 block text-sm font-medium;
+    color: var(--text-secondary);
   }
 }
 
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light dark;
 }
 
 body {
+  margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-page);
+  color: var(--text);
 }

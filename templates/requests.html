@@ -1,24 +1,57 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon %}
+{% from "_macros.html" import icon, translate_link %}
 {% block content %}
-<h2 class="mb-1 text-lg font-bold text-slate-900">Order requests</h2>
-<p class="mb-4 text-sm text-slate-400">Submitted via the public request page or "NEW ORDER" in LINE. Convert to create a real order once you know the mode and LOT number.</p>
+<h2 class="mb-1 text-lg font-bold">Order requests</h2>
+<p class="mb-4 text-sm" style="color: var(--text-faint);">Submitted via the public request page or "NEW ORDER" in LINE. Price it, check it against their budget, then convert once you know the mode and LOT number.</p>
 
 {% if pending %}
 <div class="space-y-4">
   {% for r in pending %}
+  {% set qstatus = quote_status(r.item_cost, r.shipping_cost, r.budget) %}
   <div class="card p-5">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <p class="text-sm font-semibold text-slate-900">{{ r.customer_name }}</p>
-        <p class="text-xs text-slate-400">{{ r.customer_phone }}{% if r.customer_address %} &middot; {{ r.customer_address }}{% endif %}</p>
-        <p class="mt-2 text-sm text-slate-700">{{ r.item_description }}</p>
+        <p class="text-sm font-semibold">{{ r.customer_name }}</p>
+        <p class="text-xs" style="color: var(--text-faint);">{{ r.customer_phone }}{% if r.customer_address %} &middot; {{ r.customer_address }}{% endif %}</p>
+        {% if r.other_contact %}<p class="text-xs" style="color: var(--text-faint);">Other contact: <span style="color: var(--text-secondary);">{{ r.other_contact }}</span></p>{% endif %}
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <p class="text-sm" style="color: var(--text-secondary);">{{ r.item_description }}</p>
+          {{ translate_link(r.item_description) }}
+        </div>
         {% if r.source_link %}<a href="{{ r.source_link }}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-xs text-blue-600 hover:underline">{{ r.source_link }}</a>{% endif %}
       </div>
-      <span class="shrink-0 font-mono text-xs text-slate-400">{{ r.request_code }} &middot; {{ r.created_at[:10] }}</span>
+      <div class="shrink-0 text-right">
+        <span class="font-mono text-xs" style="color: var(--text-faint);">{{ r.request_code }} &middot; {{ r.created_at[:10] }}</span>
+        <div class="mt-2 rounded-lg px-3 py-2" style="background: var(--brand-tint-bg); border: 1px solid var(--brand-tint-border);">
+          <p class="text-[10px] font-bold uppercase tracking-wide" style="color: var(--brand-text);">Budget</p>
+          <p class="text-sm font-bold" style="color: var(--brand-text);">{{ r.budget or 'Not specified' }}</p>
+        </div>
+      </div>
     </div>
 
-    <form method="post" class="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+    {# Quote panel #}
+    <form method="post" action="{{ url_for('quote_request', request_id=r.id) }}" class="mt-4 flex flex-wrap items-end gap-3 rounded-lg p-3.5" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label class="label">Item cost</label><input class="input w-28" name="item_cost" type="number" step="0.01" value="{{ r.item_cost if r.item_cost is not none else '' }}" placeholder="฿"></div>
+      <div><label class="label">Shipping cost</label><input class="input w-28" name="shipping_cost" type="number" step="0.01" value="{{ r.shipping_cost if r.shipping_cost is not none else '' }}" placeholder="฿"></div>
+      <button type="submit" class="btn">{{ icon('check-circle') }} Save quote</button>
+      <div class="ml-auto flex items-center gap-3">
+        {% if r.item_cost is not none or r.shipping_cost is not none %}
+        <span class="text-sm font-bold">Total ฿{{ '%.0f'|format((r.item_cost or 0) + (r.shipping_cost or 0)) }}</span>
+        {% endif %}
+        {% if qstatus == 'within_budget' %}
+        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: #ecfdf5; color: #059669;"><span class="h-1.5 w-1.5 rounded-full" style="background:#059669;"></span>Within budget</span>
+        {% elif qstatus == 'over_budget' %}
+        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: #fef2f2; color: #dc2626;"><span class="h-1.5 w-1.5 rounded-full" style="background:#dc2626;"></span>Over budget</span>
+        {% elif qstatus == 'quoted' %}
+        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: var(--border-soft); color: var(--text-secondary);">Quoted</span>
+        {% else %}
+        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: var(--border-soft); color: var(--text-muted);">Awaiting quote</span>
+        {% endif %}
+      </div>
+    </form>
+
+    <form method="post" class="mt-3 flex flex-wrap items-end gap-3 border-t pt-4" style="border-color: var(--border-soft);">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="request_id" value="{{ r.id }}">
       <div>
@@ -42,8 +75,8 @@
 </div>
 {% else %}
 <div class="card py-16 text-center">
-  <div class="mx-auto mb-3 flex justify-center text-slate-300">{{ icon('clipboard-list', 'h-10 w-10') }}</div>
-  <p class="text-sm text-slate-400">No pending requests.</p>
+  <div class="mx-auto mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('clipboard-list', 'h-10 w-10') }}</div>
+  <p class="text-sm" style="color: var(--text-faint);">No pending requests.</p>
 </div>
 {% endif %}
 {% endblock %}

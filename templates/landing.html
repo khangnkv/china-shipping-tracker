@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"{% if theme_attr %} data-theme="{{ theme_attr }}"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SINEX — China to Thailand parcel forwarding</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+{% from "_macros.html" import icon, theme_switch, lang_switch with context %}
+<body class="min-h-screen">
+
+<div class="px-4 pt-4">
+  <div class="mx-auto flex max-w-md items-center justify-between">
+    <span class="flex items-center gap-2">
+      <span class="flex h-8 w-8 items-center justify-center rounded-lg" style="background: var(--brand); box-shadow: 0 4px 10px -3px var(--brand-shadow);">
+        <svg width="16" height="16" viewBox="0 0 40 40" fill="none" aria-hidden="true"><ellipse cx="20" cy="20" rx="18" ry="7" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-dasharray="3 2.4" transform="rotate(-18 20 20)" opacity="0.85"/><circle cx="20" cy="20" r="12.5" fill="#ffffff"/></svg>
+      </span>
+      <span class="text-sm font-extrabold tracking-tight">SINEX</span>
+    </span>
+    <div class="flex items-center gap-1.5">{{ lang_switch() }}{{ theme_switch() }}</div>
+  </div>
+</div>
+
+{# Hero #}
+<div class="px-4 pb-7 pt-6" style="background: linear-gradient(180deg, var(--brand-tint-bg) 0%, var(--bg-page) 65%);">
+  <div class="mx-auto max-w-md">
+    <h1 class="text-2xl font-extrabold leading-snug">{{ t('landing.title') }}</h1>
+    <p class="mt-2.5 text-sm" style="color: var(--text-secondary);">{{ t('landing.subtitle') }}</p>
+    <a href="{{ url_for('new_request') }}"
+       class="mt-5 flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-white shadow-sm transition"
+       style="background: var(--brand); box-shadow: 0 10px 24px -8px var(--brand-shadow);">
+      {{ t('landing.cta') }}{{ icon('arrow-right', 'h-4 w-4') }}
+    </a>
+    <p class="mt-2.5 text-center text-xs" style="color: var(--text-faint);">{{ t('landing.cta_note') }}</p>
+  </div>
+</div>
+
+<div class="mx-auto max-w-md px-4 pb-10 pt-6">
+
+  {# How it works #}
+  <p class="mb-3.5 text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('landing.how_it_works') }}</p>
+  <div>
+    {% set steps = [
+      ('landing.step1_title', 'landing.step1_body'),
+      ('landing.step2_title', 'landing.step2_body'),
+      ('landing.step3_title', 'landing.step3_body'),
+      ('landing.step4_title', 'landing.step4_body'),
+    ] %}
+    {% for title_key, body_key in steps %}
+    <div class="flex gap-3">
+      <div class="flex flex-col items-center">
+        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+             style="{% if loop.last %}background: var(--brand); color: #fff;{% else %}background: var(--brand-tint-bg); color: var(--brand-text);{% endif %}">{{ loop.index }}</div>
+        {% if not loop.last %}<div class="w-0.5 flex-1" style="min-height: 28px; background: var(--border);"></div>{% endif %}
+      </div>
+      <div class="flex-1 {{ 'pb-5' if not loop.last else '' }}">
+        <p class="text-sm font-bold">{{ t(title_key) }}</p>
+        <p class="mt-0.5 text-xs" style="color: var(--text-muted);">{{ t(body_key) }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Trust strip #}
+  <p class="mb-3 mt-7 text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('landing.trust_title') }}</p>
+  <div class="mb-2.5 grid grid-cols-2 gap-2.5">
+    <div class="card p-3.5">
+      <p class="text-lg font-extrabold">[PLACEHOLDER]</p>
+      <p class="mt-0.5 text-xs" style="color: var(--text-muted);">shipments delivered</p>
+    </div>
+    <div class="card p-3.5">
+      <p class="text-lg font-extrabold">[PLACEHOLDER]</p>
+      <p class="mt-0.5 text-xs" style="color: var(--text-muted);">years shipping China → Thailand</p>
+    </div>
+  </div>
+  <div class="card flex items-center gap-3 p-3.5">
+    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style="background: rgba(6,199,85,0.12);">
+      {{ icon('message-circle', 'h-5 w-5 text-[#06C755]') }}
+    </span>
+    <div>
+      <p class="text-sm font-bold">{{ t('landing.trust_line_title') }}</p>
+      <p class="mt-0.5 text-xs" style="color: var(--text-muted);">{{ t('landing.trust_line_body') }}</p>
+    </div>
+  </div>
+</div>
+
+<div class="sticky bottom-0 px-4 pb-5 pt-3" style="background: linear-gradient(to top, var(--bg-page) 65%, transparent);">
+  <div class="mx-auto max-w-md">
+    <a href="{{ url_for('new_request') }}"
+       class="flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-white shadow-sm"
+       style="background: var(--brand); box-shadow: 0 10px 24px -8px var(--brand-shadow);">
+      {{ t('landing.cta') }}{{ icon('arrow-right', 'h-4 w-4') }}
+    </a>
+  </div>
+</div>
+
+</body>
+</html>
