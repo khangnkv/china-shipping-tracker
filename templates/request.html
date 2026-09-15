@@ -10,11 +10,31 @@
 <body class="min-h-screen">
 
 {% if not_found %}
-  <div class="flex min-h-screen flex-col items-center justify-center px-4">
-    <div class="w-full max-w-sm text-center">
-      <div class="mx-auto mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('alert-circle', 'h-10 w-10') }}</div>
-      <h1 class="text-lg font-bold">{{ t('request.not_found_title') }}</h1>
-      <p class="mt-1 text-sm" style="color: var(--text-muted);">{{ t('request.not_found_body') }}</p>
+  <div class="px-4 pb-5 pt-6 shadow-sm" style="background: var(--bg-card);">
+    <div class="mx-auto max-w-md">
+      <div class="flex items-center justify-between">
+        <a href="{{ url_for('landing') }}" class="flex items-center gap-2">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg" style="background: var(--brand);">
+            <svg width="16" height="16" viewBox="0 0 40 40" fill="none" aria-hidden="true"><ellipse cx="20" cy="20" rx="18" ry="7" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-dasharray="3 2.4" transform="rotate(-18 20 20)" opacity="0.85"/><circle cx="20" cy="20" r="12.5" fill="#ffffff"/></svg>
+          </span>
+          <span class="text-sm font-semibold">SINEX</span>
+        </a>
+        <div class="flex items-center gap-1.5">{{ lang_switch() }}{{ theme_switch() }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="mx-auto flex max-w-md flex-col items-center px-4 py-12 text-center">
+    <div class="mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('alert-circle', 'h-10 w-10') }}</div>
+    <h1 class="text-lg font-bold">{{ t('request.not_found_title') }}</h1>
+    <p class="mt-1.5 text-sm" style="color: var(--text-muted);">{{ t('request.not_found_body') }}</p>
+    <div class="mt-6 flex w-full flex-col gap-2.5">
+      <a href="{{ url_for('new_request') }}" class="btn-primary w-full justify-center">{{ t('request.not_found_cta') }}</a>
+      {% if LINE_CONTACT %}
+      <a href="https://line.me/ti/p/~{{ LINE_CONTACT.lstrip('@') }}" target="_blank" rel="noopener noreferrer"
+         class="flex w-full items-center justify-center gap-2 rounded-lg bg-[#06C755] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#05b04c] active:scale-[0.98]">
+        {{ icon('message-circle', 'h-4 w-4') }} {{ t('request.line_cta') }}
+      </a>
+      {% endif %}
     </div>
   </div>
 {% else %}
@@ -68,9 +88,9 @@
       <div class="flex items-center justify-between">
         <p class="text-sm font-semibold">{{ t('request.quote_title') }}</p>
         {% if qstatus == 'within_budget' %}
-        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: #ecfdf5; color: #059669;"><span class="h-1.5 w-1.5 rounded-full" style="background:#059669;"></span>{{ t('request.quote_within') }}</span>
+        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: var(--success-bg); color: var(--success-text);"><span class="h-1.5 w-1.5 rounded-full" style="background: var(--success-dot);"></span>{{ t('request.quote_within') }}</span>
         {% elif qstatus == 'over_budget' %}
-        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: #fef2f2; color: #dc2626;"><span class="h-1.5 w-1.5 rounded-full" style="background:#dc2626;"></span>{{ t('request.quote_over') }}</span>
+        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background: var(--danger-bg); color: var(--danger-text);"><span class="h-1.5 w-1.5 rounded-full" style="background: var(--danger-dot);"></span>{{ t('request.quote_over') }}</span>
         {% endif %}
       </div>
       <div class="mt-3 space-y-1.5 text-sm">
@@ -93,9 +113,9 @@
     </div>
     {% endif %}
 
-    {# Step tracker: purely visual progress cue. "photo" advances to "budget"
-       specifically when a reference image is dropped/attached (see the
-       dropzone:filled listener in static/interactive.js). #}
+    {# Step tracker mirrors the real wizard below (data-wizard / data-wizard-step,
+       driven by static/interactive.js) -- fields in a later step are genuinely
+       inaccessible until the current one validates, not just visually deemphasized. #}
     {% if not submitted %}
     <div data-step-tracker class="mb-4 flex items-center gap-2">
       <div class="flex items-center gap-1.5" data-step="details">
@@ -115,55 +135,87 @@
     </div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" class="card space-y-4 p-5">
+    {% if photo_reattach %}
+    <div class="js-toast mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{{ t('request.error_reattach_photo') }}</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="card space-y-4 p-5"
+          {% if not submitted %}data-wizard data-wizard-start="{{ wizard_start_step or 1 }}"
+          data-label-next="{{ t('request.wizard_next') }}" data-label-back="{{ t('request.wizard_back') }}"{% endif %}>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div><label class="label">{{ t('request.name') }}</label><input class="input" data-step-source="details" name="name" value="{{ values.name }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
-      <div><label class="label">{{ t('request.phone') }}</label><input class="input" data-step-source="details" name="phone" value="{{ values.phone }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
-      <div><label class="label">{{ t('request.address') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.address_optional') }}</span></label><input class="input" name="address" value="{{ values.address }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
-      <div><label class="label">{{ t('request.other_contact') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
-        <input class="input" name="other_contact" value="{{ values.other_contact }}" placeholder="{{ t('request.other_contact_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
-        <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('request.other_contact_hint') }}</p>
-      </div>
-      <div><label class="label">{{ t('request.item') }}</label>
-        <textarea class="input" data-step-source="details" name="item_description" rows="3" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>{{ values.item_description }}</textarea>
-      </div>
-      <div><label class="label">{{ t('request.link') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label><input class="input" name="source_link" type="url" value="{{ values.source_link }}" placeholder="https://..." {{ 'disabled' if submitted and request_row.status != 'new' else '' }}></div>
-      {% if not submitted %}
-      <div>
-        <label class="label">{{ t('request.reference_image') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
-        <label data-dropzone class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-5 text-center transition" style="border-color: var(--input-border); background: var(--bg-card-soft);">
-          <input type="file" name="reference_image" accept="image/jpeg,image/png,image/webp" class="hidden">
-          <img data-dropzone-preview hidden alt="" class="max-h-28 rounded-lg" style="border: 1px solid var(--border);">
-          <span data-dropzone-icon style="color: var(--text-faint);">{{ icon('package', 'h-6 w-6') }}</span>
-          <span data-dropzone-hint class="text-xs font-medium" style="color: var(--text-muted);">{{ t('request.dropzone_hint') }}</span>
-        </label>
-        <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('request.reference_image_hint') }}</p>
-      </div>
-      {% endif %}
-      <div class="rounded-xl p-3.5" style="background: var(--brand-tint-bg); border: 1px solid var(--brand-tint-border);">
-        <label class="mb-1.5 block text-sm font-bold" style="color: var(--brand-text);">{{ t('request.budget') }}</label>
-        <input class="input" data-step-source="budget" name="budget" value="{{ values.budget }}" placeholder="{{ t('request.budget_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
-        <p class="mt-1.5 text-xs" style="color: var(--brand-text); opacity: 0.85;">{{ t('request.budget_hint') }}</p>
-      </div>
 
-      <div class="rounded-lg p-3" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
-        <p class="text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('request.delivery_estimates_title') }}</p>
-        <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs" style="color: var(--text-secondary);">
-          <span>{{ t('request.delivery_road') }}</span>
-          <span>{{ t('request.delivery_boat') }}</span>
+      <fieldset data-wizard-step="1" class="m-0 space-y-4 border-0 p-0">
+        <div>
+          <label class="label" for="f_name">{{ t('request.name') }}</label>
+          <input id="f_name" class="input {{ 'input-error' if field_errors and field_errors.name else '' }}" data-step-source="details" name="name" value="{{ values.name }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
+          {% if field_errors and field_errors.name %}<p class="mt-1 text-xs font-medium" style="color: var(--danger-dot);">{{ field_errors.name }}</p>{% endif %}
         </div>
-        <p class="mt-1.5 text-[11px]" style="color: var(--text-faint);">{{ t('request.delivery_estimates_note') }}</p>
-      </div>
+        <div>
+          <label class="label" for="f_phone">{{ t('request.phone') }}</label>
+          <input id="f_phone" class="input {{ 'input-error' if field_errors and field_errors.phone else '' }}" data-step-source="details" name="phone" value="{{ values.phone }}" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
+          {% if field_errors and field_errors.phone %}<p class="mt-1 text-xs font-medium" style="color: var(--danger-dot);">{{ field_errors.phone }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="label" for="f_address">{{ t('request.address') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.address_optional') }}</span></label>
+          <input id="f_address" class="input" name="address" value="{{ values.address }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
+        </div>
+        <div>
+          <label class="label" for="f_other_contact">{{ t('request.other_contact') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
+          <input id="f_other_contact" class="input" name="other_contact" value="{{ values.other_contact }}" placeholder="{{ t('request.other_contact_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
+          <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('request.other_contact_hint') }}</p>
+        </div>
+        <div>
+          <label class="label" for="f_item">{{ t('request.item') }}</label>
+          <textarea id="f_item" class="input {{ 'input-error' if field_errors and field_errors.item_description else '' }}" data-step-source="details" name="item_description" rows="3" required {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>{{ values.item_description }}</textarea>
+          {% if field_errors and field_errors.item_description %}<p class="mt-1 text-xs font-medium" style="color: var(--danger-dot);">{{ field_errors.item_description }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="label" for="f_link">{{ t('request.link') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
+          <input id="f_link" class="input" name="source_link" type="url" value="{{ values.source_link }}" placeholder="https://..." {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
+        </div>
+      </fieldset>
 
-      {% if not submitted or request_row.status == 'new' %}
       {% if not submitted %}
-      <label class="flex items-start gap-2.5 text-xs" style="color: var(--text-secondary);">
-        <input type="checkbox" name="agree_terms" required class="mt-0.5 h-4 w-4 shrink-0 rounded" style="border-color: var(--input-border);">
-        <span>{{ t('request.agree_terms_prefix') }} <a href="{{ url_for('terms_page') }}" target="_blank" rel="noopener noreferrer" class="font-medium underline" style="color: var(--brand-text);">{{ t('request.agree_terms_link') }}</a></span>
-      </label>
+      <fieldset data-wizard-step="2" class="m-0 space-y-3 border-0 p-0">
+        <div>
+          <label class="label" for="f_reference_image">{{ t('request.reference_image') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
+          <label data-dropzone class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-5 text-center transition" style="border-color: var(--input-border); background: var(--bg-card-soft);">
+            <input id="f_reference_image" type="file" name="reference_image" accept="image/jpeg,image/png,image/webp" class="hidden">
+            <img data-dropzone-preview hidden alt="" class="max-h-28 rounded-lg" style="border: 1px solid var(--border);">
+            <span data-dropzone-icon style="color: var(--text-faint);">{{ icon('package', 'h-6 w-6') }}</span>
+            <span data-dropzone-hint class="text-xs font-medium" style="color: var(--text-muted);">{{ t('request.dropzone_hint') }}</span>
+          </label>
+          <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('request.reference_image_hint') }}</p>
+        </div>
+      </fieldset>
       {% endif %}
-      <button type="submit" class="btn-primary w-full justify-center">{{ icon('plus') }} {{ t('request.save') if submitted else t('request.submit') }}</button>
-      {% endif %}
+
+      <fieldset data-wizard-step="3" class="m-0 space-y-4 border-0 p-0">
+        <div class="rounded-xl p-3.5" style="background: var(--brand-tint-bg); border: 1px solid var(--brand-tint-border);">
+          <label class="mb-1.5 block text-sm font-bold" for="f_budget" style="color: var(--brand-text);">{{ t('request.budget') }}</label>
+          <input id="f_budget" class="input" data-step-source="budget" name="budget" value="{{ values.budget }}" placeholder="{{ t('request.budget_placeholder') }}" {{ 'disabled' if submitted and request_row.status != 'new' else '' }}>
+          <p class="mt-1.5 text-xs" style="color: var(--brand-text); opacity: 0.85;">{{ t('request.budget_hint') }}</p>
+        </div>
+
+        <div class="rounded-lg p-3" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+          <p class="text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('request.delivery_estimates_title') }}</p>
+          <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs" style="color: var(--text-secondary);">
+            <span>{{ t('request.delivery_road') }}</span>
+            <span>{{ t('request.delivery_boat') }}</span>
+          </div>
+          <p class="mt-1.5 text-[11px]" style="color: var(--text-faint);">{{ t('request.delivery_estimates_note') }}</p>
+        </div>
+
+        {% if not submitted or request_row.status == 'new' %}
+        {% if not submitted %}
+        <label class="flex items-start gap-2.5 text-xs" style="color: var(--text-secondary);">
+          <input type="checkbox" name="agree_terms" required class="mt-0.5 h-4 w-4 shrink-0 rounded" style="border-color: var(--input-border);">
+          <span>{{ t('request.agree_terms_prefix') }} <a href="{{ url_for('terms_page') }}" target="_blank" rel="noopener noreferrer" class="font-medium underline" style="color: var(--brand-text);">{{ t('request.agree_terms_link') }}</a></span>
+        </label>
+        {% endif %}
+        <button type="submit" class="btn-primary w-full justify-center">{{ icon('plus') }} {{ t('request.save') if submitted else t('request.submit') }}</button>
+        {% endif %}
+      </fieldset>
     </form>
 
     {% if submitted %}

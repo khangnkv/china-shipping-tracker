@@ -33,7 +33,7 @@
     <span class="btn-primary">{{ icon('plus') }} Add order</span>
   </summary>
   <div class="mt-4 rounded-lg p-3" style="border: 1px solid var(--border); background: var(--bg-card-soft);">
-    <label class="label">Paste customer info <span class="font-normal" style="color: var(--text-faint);">(name, phone, address — any format)</span></label>
+    <label class="label" for="blob">Paste customer info <span class="font-normal" style="color: var(--text-faint);">(name, phone, address — any format)</span></label>
     <textarea id="blob" class="input" rows="3" placeholder="คุณสมชาย ใจดี 081-234-5678 123/45 ถ.สุขุมวิท ..."></textarea>
     <button type="button" id="splitBtn" class="btn mt-2" onclick="splitCustomer()">Split into fields</button>
     <span id="splitMsg" class="ml-2 text-xs" style="color: var(--text-faint);"></span>
@@ -41,23 +41,23 @@
 
   <form method="post" action="{{ url_for('new_order') }}" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div><label class="label">Customer name</label><input id="f_name" class="input" name="name" placeholder="Customer name" required></div>
-    <div><label class="label">Phone</label><input id="f_phone" class="input" name="phone" placeholder="Phone"></div>
-    <div><label class="label">Agency</label>
-      <select class="input" name="agency_id">
+    <div><label class="label" for="f_name">Customer name</label><input id="f_name" class="input" name="name" placeholder="Customer name" required></div>
+    <div><label class="label" for="f_phone">Phone</label><input id="f_phone" class="input" name="phone" placeholder="Phone"></div>
+    <div><label class="label" for="f_agency">Agency</label>
+      <select id="f_agency" class="input" name="agency_id">
         <option value="">— none —</option>
         {% for a in agencies %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
       </select>
     </div>
-    <div class="sm:col-span-2 lg:col-span-3"><label class="label">Address</label><input id="f_address" class="input" name="address" placeholder="Delivery address"></div>
+    <div class="sm:col-span-2 lg:col-span-3"><label class="label" for="f_address">Address</label><input id="f_address" class="input" name="address" placeholder="Delivery address"></div>
     <div>
-      <label class="label">Mode</label>
-      <select class="input" name="mode">
+      <label class="label" for="f_mode">Mode</label>
+      <select id="f_mode" class="input" name="mode">
         <option value="รถ" selected>รถ (truck)</option>
         <option value="เรือ">เรือ (ship)</option>
       </select>
     </div>
-    <div><label class="label">LOT number <span class="font-normal" style="color: var(--text-faint);">(internal)</span></label><input class="input" name="lot" placeholder="e.g. 11092" required type="number"></div>
+    <div><label class="label" for="f_lot">LOT number <span class="font-normal" style="color: var(--text-faint);">(internal)</span></label><input id="f_lot" class="input" name="lot" placeholder="e.g. 11092" required type="number"></div>
     <div class="flex items-end"><button type="submit" class="btn-primary">{{ icon('plus') }} Create order</button></div>
   </form>
 </details>
@@ -65,9 +65,11 @@
 {# Toolbar #}
 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
   <div class="relative max-w-xs flex-1">
+    <label class="sr-only" for="q">Search orders</label>
     <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style="color: var(--text-faint);">{{ icon('search') }}</span>
     <input id="q" class="input pl-9" placeholder="Search code, name, phone, item…" oninput="filterRows()">
   </div>
+  <label class="sr-only" for="statusFilter">Filter by status</label>
   <select id="statusFilter" class="input sm:max-w-[200px]" onchange="filterRows()">
     <option value="all">All statuses</option>
     {% for s in STATUS_ORDER %}<option value="{{ s }}">{{ CUSTOMER_STATUS[s] }}</option>{% endfor %}
@@ -98,7 +100,9 @@
             onmouseover="this.style.background='var(--bg-card-soft)'" onmouseout="this.style.background=''"
             data-status="{{ o.status }}"
             data-search="{{ (o.link_code ~ ' ' ~ o.customer_name ~ ' ' ~ (o.customer_phone or '') ~ ' ' ~ (o.item_desc_en or '') ~ ' ' ~ (o.item_title_zh or ''))|lower }}"
-            onclick="location.href='{{ url_for('order_detail', order_id=o.id) }}'">
+            onclick="location.href='{{ url_for('order_detail', order_id=o.id) }}'"
+            tabindex="0" role="link" aria-label="View order {{ o.link_code }} for {{ o.customer_name }}"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='{{ url_for('order_detail', order_id=o.id) }}';}">
           <td class="px-4 py-3"><span class="font-mono text-sm font-medium">{{ o.link_code }}</span></td>
           <td class="px-4 py-3">
             <div class="text-sm font-medium">{{ o.customer_name }}</div>

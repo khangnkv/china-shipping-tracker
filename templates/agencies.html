@@ -8,26 +8,28 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="action" value="add">
   <div class="sm:col-span-2 lg:col-span-4">
-    <label class="label">Agency name</label>
-    <input class="input" name="name" placeholder="e.g. Kerry-CN, EMS-Line…" required>
+    <label class="label" for="agencyName">Agency name</label>
+    <input id="agencyName" class="input" name="name" placeholder="e.g. Kerry-CN, EMS-Line…" required>
   </div>
 
   <div>
-    <label class="label">From</label>
+    <label class="label" for="fromSel">From</label>
     <select class="input" name="from_country_id" id="fromSel" onchange="toggleOther('fromSel','fromOther')">
       <option value="">— select —</option>
       {% for c in countries if c.active %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
       <option value="__other__">Other…</option>
     </select>
+    <label class="sr-only" for="fromOther">From country (other)</label>
     <input class="input mt-2 hidden" id="fromOther" name="from_country_text" placeholder="Country name">
   </div>
   <div>
-    <label class="label">To</label>
+    <label class="label" for="toSel">To</label>
     <select class="input" name="to_country_id" id="toSel" onchange="toggleOther('toSel','toOther')">
       <option value="">— select —</option>
       {% for c in countries if c.active %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
       <option value="__other__">Other…</option>
     </select>
+    <label class="sr-only" for="toOther">To country (other)</label>
     <input class="input mt-2 hidden" id="toOther" name="to_country_text" placeholder="Country name">
   </div>
   <div class="flex items-end pb-2.5">
@@ -36,8 +38,8 @@
     </label>
   </div>
   <div>
-    <label class="label">Link <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label>
-    <input class="input" name="url" type="url" placeholder="https://agency-site.com">
+    <label class="label" for="agencyUrl">Link <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label>
+    <input id="agencyUrl" class="input" name="url" type="url" placeholder="https://agency-site.com">
   </div>
 
   <div class="sm:col-span-2 lg:col-span-4">
@@ -100,7 +102,7 @@
   <form method="post" class="mb-3 flex items-end gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="add_country">
-    <div class="flex-1"><label class="label">New country</label><input class="input" name="country_name" placeholder="e.g. Cambodia" required></div>
+    <div class="flex-1"><label class="label" for="countryName">New country</label><input id="countryName" class="input" name="country_name" placeholder="e.g. Cambodia" required></div>
     <button type="submit" class="btn">{{ icon('plus') }} Add</button>
   </form>
   <ul class="space-y-1.5">

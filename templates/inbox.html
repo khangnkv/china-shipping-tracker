@@ -40,8 +40,10 @@
     <form method="post" enctype="multipart/form-data" class="mt-4 flex flex-wrap items-center gap-2 border-t pt-4" style="border-color: var(--border-soft);">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="customer_id" value="{{ t.customer_id }}">
-      <input class="input flex-1" name="text" placeholder="Type a reply…">
-      <input class="text-xs" style="color: var(--text-muted);" type="file" name="image" accept="image/jpeg,image/png,image/webp">
+      <label class="sr-only" for="reply_text_{{ t.customer_id }}">Reply to {{ t.name }}</label>
+      <input id="reply_text_{{ t.customer_id }}" class="input flex-1" name="text" placeholder="Type a reply…">
+      <label class="sr-only" for="reply_image_{{ t.customer_id }}">Attach image</label>
+      <input id="reply_image_{{ t.customer_id }}" class="text-xs" style="color: var(--text-muted);" type="file" name="image" accept="image/jpeg,image/png,image/webp">
       <button type="submit" class="btn-primary">{{ icon('message-circle') }} Send</button>
     </form>
     {% else %}

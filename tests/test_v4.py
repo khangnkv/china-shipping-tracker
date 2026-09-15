@@ -82,7 +82,8 @@ def test_request_reuses_existing_customer_by_phone(app_module, client):
 
 def test_request_missing_fields_rejected(app_module, client):
     resp = client.post("/request", data={"name": "", "phone": "", "item_description": ""}, follow_redirects=True)
-    assert b"fill in" in resp.data
+    assert b"highlighted fields" in resp.data
+    assert b"This is required" in resp.data
     with app_module.app.app_context():
         count = app_module.get_db().execute("SELECT COUNT(*) FROM order_requests").fetchone()[0]
     assert count == 0
@@ -356,3 +357,70 @@ def test_nav_badge_counts_reflect_pending_state(app_module, client):
     assert b"Requests" in resp.data
     # badge shows "1" somewhere near the Requests link
     assert b'>1</span>' in resp.data or b'>1<' in resp.data
+
+
+# ---- Impeccable critique fixes: error handlers, field errors, not-found recovery ----
+
+def test_413_shows_friendly_error_page(app_module, client):
+    app_module.app.config["MAX_CONTENT_LENGTH"] = 10
+    resp = client.post("/request", data={"name": "x" * 100})
+    assert resp.status_code == 413
+    assert b"too large" in resp.data.lower()
+    assert b"Go back" in resp.data
+
+
+def test_csrf_error_shows_friendly_page(app_module, client):
+    app_module.app.config["WTF_CSRF_ENABLED"] = True
+    resp = client.post(
+        "/admin/login", data={"password": "wrong", "csrf_token": "bogus-token"},
+    )
+    assert resp.status_code == 400
+    assert b"expired" in resp.data.lower()
+
+
+def test_request_field_errors_shown_inline_and_photo_reattach_warning(app_module, client, tmp_path):
+    from io import BytesIO
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (50, 50), "blue").save(buf, format="JPEG")
+    buf.seek(0)
+    resp = client.post(
+        "/request",
+        data={"name": "", "phone": "", "item_description": "", "reference_image": (buf, "photo.jpg")},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert b"This is required" in resp.data
+    assert b"reattach your reference photo" in resp.data
+
+
+def test_track_not_found_has_header_and_home_link(app_module, client):
+    resp = client.get("/track/NOSUCH")
+    assert resp.status_code == 404
+    assert b"SINEX" in resp.data
+    assert b"Go to homepage" in resp.data
+
+
+def test_view_request_not_found_has_recovery_cta(app_module, client):
+    resp = client.get("/request/NOSUCH")
+    assert resp.status_code == 404
+    assert b"Submit a new request" in resp.data
+
+
+def test_quote_chip_uses_token_colors_not_raw_hex(app_module, client):
+    cid = None
+    with app_module.app.app_context():
+        db = app_module.get_db()
+        cid = app_module._find_or_create_customer("Chip", "0899990000", "Addr")
+        db.commit()
+        db.execute(
+            "INSERT INTO order_requests (customer_id, request_code, item_description, budget, item_cost, "
+            "status, created_at, updated_at) VALUES (?, 'CHIPX1', 'thing', '1000', 500, 'new', datetime('now'), datetime('now'))",
+            (cid,),
+        )
+        db.commit()
+    login(client)
+    resp = client.get("/admin/requests")
+    assert b"var(--success-bg)" in resp.data
+    assert b"#ecfdf5" not in resp.data

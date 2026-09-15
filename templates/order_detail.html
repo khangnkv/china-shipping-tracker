@@ -22,19 +22,20 @@
 {# Status advance #}
 <section class="card mb-5 p-5">
   <h3 class="mb-3 text-sm font-semibold">Update status</h3>
-  <form method="post" class="flex flex-wrap items-end gap-3">
+  <form method="post" class="flex flex-wrap items-end gap-3" id="statusForm" onsubmit="return confirmStatusChange()"
+        data-current-status="{{ order.status }}" data-line-linked="{{ '1' if order.line_user_id else '' }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="advance_status">
     <div>
-      <label class="label">Stage</label>
+      <label class="label" for="statusSel">Stage</label>
       <select id="statusSel" class="input" name="status" onchange="toggleCarrier()">
         {% for s in STATUS_ORDER %}<option value="{{ s }}" {{ 'selected' if s == order.status else '' }}>{{ loop.index }}. {{ CUSTOMER_STATUS[s] }}</option>{% endfor %}
       </select>
     </div>
-    <div class="flex-1"><label class="label">Note <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label><input class="input" name="note" placeholder="e.g. cleared customs"></div>
+    <div class="flex-1"><label class="label" for="statusNote">Note <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label><input id="statusNote" class="input" name="note" placeholder="e.g. cleared customs"></div>
     <div id="carrierWrap" class="hidden basis-full grid gap-3 sm:grid-cols-2">
-      <div><label class="label">Local carrier</label><input class="input" name="local_carrier" value="{{ order.local_carrier or '' }}" placeholder="Flash Express / Kerry / …"></div>
-      <div><label class="label">Local tracking no.</label><input class="input" name="local_tracking_no" value="{{ order.local_tracking_no or '' }}" placeholder="TH..."></div>
+      <div><label class="label" for="localCarrier">Local carrier</label><input id="localCarrier" class="input" name="local_carrier" value="{{ order.local_carrier or '' }}" placeholder="Flash Express / Kerry / …"></div>
+      <div><label class="label" for="localTrackingNo">Local tracking no.</label><input id="localTrackingNo" class="input" name="local_tracking_no" value="{{ order.local_tracking_no or '' }}" placeholder="TH..."></div>
     </div>
     <button type="submit" class="btn-primary">{{ icon('check-circle') }} Update</button>
   </form>
@@ -50,24 +51,24 @@
     <h3 class="mb-4 text-sm font-semibold">Order info</h3>
     <div class="grid gap-4 sm:grid-cols-3">
       <div>
-        <label class="label">Order date</label>
-        <input class="input" name="order_date" type="date" value="{{ order.created_at[:10] if order.created_at else '' }}">
+        <label class="label" for="orderDate">Order date</label>
+        <input id="orderDate" class="input" name="order_date" type="date" value="{{ order.created_at[:10] if order.created_at else '' }}">
       </div>
       <div>
-        <label class="label">Mode</label>
-        <select class="input" name="tracking_mode">
+        <label class="label" for="trackingMode">Mode</label>
+        <select id="trackingMode" class="input" name="tracking_mode">
           <option value="รถ" {{ 'selected' if order.tracking_mode == 'รถ' else '' }}>รถ (truck)</option>
           <option value="เรือ" {{ 'selected' if order.tracking_mode == 'เรือ' else '' }}>เรือ (ship)</option>
         </select>
       </div>
       <div>
-        <label class="label">LOT number</label>
-        <input class="input" name="tracking_lot" type="number" value="{{ order.tracking_lot }}">
+        <label class="label" for="trackingLot">LOT number</label>
+        <input id="trackingLot" class="input" name="tracking_lot" type="number" value="{{ order.tracking_lot }}">
       </div>
     </div>
     <div class="mt-4">
-      <label class="label">Shipping info <span class="font-normal" style="color: var(--text-faint);">(name/phone/address the customer sent — submitted via LINE or typed here)</span></label>
-      <textarea class="input" name="shipping_info" rows="2">{{ order.shipping_info or '' }}</textarea>
+      <label class="label" for="shippingInfo">Shipping info <span class="font-normal" style="color: var(--text-faint);">(name/phone/address the customer sent — submitted via LINE or typed here)</span></label>
+      <textarea id="shippingInfo" class="input" name="shipping_info" rows="2">{{ order.shipping_info or '' }}</textarea>
     </div>
   </section>
 
@@ -76,23 +77,23 @@
     <h3 class="mb-4 text-sm font-semibold">Product</h3>
     <div class="space-y-4">
       <div>
-        <label class="label">Source link <span class="font-normal" style="color: var(--text-faint);">(internal, never shown to customer)</span></label>
+        <label class="label" for="sourceLink">Source link <span class="font-normal" style="color: var(--text-faint);">(internal, never shown to customer)</span></label>
         <div class="flex gap-2">
-          <input class="input" name="source_link" value="{{ order.source_link or '' }}" placeholder="https://item.taobao.com/...">
+          <input id="sourceLink" class="input" name="source_link" value="{{ order.source_link or '' }}" placeholder="https://item.taobao.com/...">
         </div>
         <button form="fetchImgForm" type="submit" class="btn mt-2">{{ icon('search') }} Fetch image from link</button>
         <span class="ml-1 text-xs" style="color: var(--text-faint);">(best-effort — Xianyu/Taobao often block; paste or drag instead)</span>
       </div>
       <div>
-        <label class="label">Chinese title <span class="font-normal" style="color: var(--text-faint);">(auto-translated on save if EN/TH left blank)</span></label>
-        <input class="input" name="item_title_zh" value="{{ order.item_title_zh or '' }}">
+        <label class="label" for="itemTitleZh">Chinese title <span class="font-normal" style="color: var(--text-faint);">(auto-translated on save if EN/TH left blank)</span></label>
+        <input id="itemTitleZh" class="input" name="item_title_zh" value="{{ order.item_title_zh or '' }}">
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
-        <div><label class="label">English (shown to customer)</label><input class="input" name="item_desc_en" value="{{ order.item_desc_en or '' }}"></div>
-        <div><label class="label">Thai (shown to customer)</label><input class="input" name="item_desc_th" value="{{ order.item_desc_th or '' }}"></div>
+        <div><label class="label" for="itemDescEn">English (shown to customer)</label><input id="itemDescEn" class="input" name="item_desc_en" value="{{ order.item_desc_en or '' }}"></div>
+        <div><label class="label" for="itemDescTh">Thai (shown to customer)</label><input id="itemDescTh" class="input" name="item_desc_th" value="{{ order.item_desc_th or '' }}"></div>
       </div>
       <div>
-        <label class="label">Product image <span class="font-normal" style="color: var(--text-faint);">(drag, paste, or upload — JPEG/PNG/WEBP, max 5 MB)</span></label>
+        <label class="label" for="imgInput">Product image <span class="font-normal" style="color: var(--text-faint);">(drag, paste, or upload — JPEG/PNG/WEBP, max 5 MB)</span></label>
         <div id="dropzone" class="rounded-lg border-2 border-dashed p-4 text-center text-sm transition" style="border-color: var(--input-border); color: var(--text-faint);">
           Drag an image here, or paste from clipboard, or
           <input class="input mt-2" type="file" name="image" id="imgInput" accept="image/jpeg,image/png,image/webp">
@@ -107,10 +108,10 @@
   <section class="card p-5">
     <h3 class="mb-4 text-sm font-semibold">Money <span class="font-normal" style="color: var(--text-faint);">(baht)</span></h3>
     <div class="grid grid-cols-2 gap-3">
-      <div><label class="label">Payment</label><input class="input" name="payment_amount" type="number" step="any" value="{{ order.payment_amount if order.payment_amount is not none else '' }}"></div>
-      <div><label class="label">Item cost</label><input class="input" name="item_cost" type="number" step="any" value="{{ order.item_cost if order.item_cost is not none else '' }}"></div>
-      <div><label class="label">China ship</label><input class="input" name="china_ship_fee" type="number" step="any" value="{{ order.china_ship_fee if order.china_ship_fee is not none else '' }}"></div>
-      <div><label class="label">House ship</label><input class="input" name="house_ship_fee" type="number" step="any" value="{{ order.house_ship_fee if order.house_ship_fee is not none else '' }}"></div>
+      <div><label class="label" for="paymentAmount">Payment</label><input id="paymentAmount" class="input" name="payment_amount" type="number" step="any" value="{{ order.payment_amount if order.payment_amount is not none else '' }}"></div>
+      <div><label class="label" for="itemCost">Item cost</label><input id="itemCost" class="input" name="item_cost" type="number" step="any" value="{{ order.item_cost if order.item_cost is not none else '' }}"></div>
+      <div><label class="label" for="chinaShipFee">China ship</label><input id="chinaShipFee" class="input" name="china_ship_fee" type="number" step="any" value="{{ order.china_ship_fee if order.china_ship_fee is not none else '' }}"></div>
+      <div><label class="label" for="houseShipFee">House ship</label><input id="houseShipFee" class="input" name="house_ship_fee" type="number" step="any" value="{{ order.house_ship_fee if order.house_ship_fee is not none else '' }}"></div>
     </div>
     <div class="mt-4 rounded-lg p-3" style="background: var(--bg-card-soft);">
       <div class="flex items-center justify-between"><span class="text-sm" style="color: var(--text-muted);">Profit</span><span class="text-lg font-bold" style="color: {{ '#059669' if p.profit >= 0 else '#dc2626' }};">฿{{ "{:,.0f}".format(p.profit) }}</span></div>
@@ -120,15 +121,15 @@
     <h3 class="mb-2 mt-5 text-sm font-semibold">Tracking &amp; agency</h3>
     <div class="space-y-3">
       <div>
-        <label class="label">Agency</label>
-        <select class="input" name="agency_id">
+        <label class="label" for="agencySel">Agency</label>
+        <select id="agencySel" class="input" name="agency_id">
           <option value="">— none —</option>
           {% for a in agencies %}<option value="{{ a.id }}" {{ 'selected' if order.agency_id == a.id else '' }}>{{ a.name }}</option>{% endfor %}
         </select>
       </div>
       <div>
-        <label class="label">China tracking no.</label>
-        <input class="input" name="china_tracking_no" value="{{ order.china_tracking_no or '' }}" placeholder="SF...">
+        <label class="label" for="chinaTrackingNo">China tracking no.</label>
+        <input id="chinaTrackingNo" class="input" name="china_tracking_no" value="{{ order.china_tracking_no or '' }}" placeholder="SF...">
         {% if china_track_url %}<a href="{{ china_track_url }}" target="_blank" class="mt-1 inline-block text-xs text-blue-600 hover:underline">Track on 17TRACK →</a>{% endif %}
       </div>
     </div>
@@ -155,6 +156,19 @@
 </section>
 
 <script>
+  // Confirm before a status change that's customer-visible -- every stage
+  // shows on /track, and a linked customer also gets a LINE push immediately.
+  // A misclick here used to go live with zero chance to catch it.
+  function confirmStatusChange() {
+    var form = document.getElementById('statusForm');
+    var sel = document.getElementById('statusSel');
+    if (sel.value === form.dataset.currentStatus) return true;
+    var label = sel.options[sel.selectedIndex].text.replace(/^\d+\.\s*/, '');
+    var msg = 'Update this order to "' + label + '"?';
+    if (form.dataset.lineLinked) msg += ' The customer will be notified on LINE immediately.';
+    return window.confirm(msg);
+  }
+
   function toggleCarrier() {
     document.getElementById('carrierWrap').classList.toggle('hidden', document.getElementById('statusSel').value !== 'out_for_delivery');
   }

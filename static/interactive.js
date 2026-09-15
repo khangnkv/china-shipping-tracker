@@ -98,12 +98,12 @@
         chipEl.style.color = "var(--text-secondary)";
       } else if (item <= budgetNum) {
         chipEl.textContent = "Item within budget";
-        chipEl.style.background = "#ecfdf5";
-        chipEl.style.color = "#059669";
+        chipEl.style.background = "var(--success-bg)";
+        chipEl.style.color = "var(--success-text)";
       } else {
         chipEl.textContent = "Item over budget";
-        chipEl.style.background = "#fef2f2";
-        chipEl.style.color = "#dc2626";
+        chipEl.style.background = "var(--danger-bg)";
+        chipEl.style.color = "var(--danger-text)";
       }
     }
     itemInput.addEventListener("input", recompute);
@@ -159,47 +159,111 @@
     });
   });
 
-  // ---- Request-form step tracker -----------------------------------------
-  // Purely a visual progress cue (the form itself is still one page, not a
-  // wizard) -- but the one state change that matters most: dropping/
-  // attaching the reference photo visibly advances to the next step.
-  document.querySelectorAll("[data-step-tracker]").forEach(function (tracker) {
-    var STATE_STYLE = {
-      current: { dotBg: "var(--brand)", dotColor: "#fff", labelColor: "var(--text)" },
-      done: { dotBg: "var(--brand-tint-bg)", dotColor: "var(--brand-text)", labelColor: "var(--text-secondary)" },
-      upcoming: { dotBg: "var(--border-soft)", dotColor: "var(--text-faint2)", labelColor: "var(--text-faint)" },
-    };
-    function setStep(name, state) {
-      var step = tracker.querySelector('[data-step="' + name + '"]');
-      if (!step) return;
-      var style = STATE_STYLE[state];
-      var dot = step.querySelector("[data-step-dot]");
-      var label = step.querySelector("[data-step-label]");
-      if (dot) { dot.style.background = style.dotBg; dot.style.color = style.dotColor; }
-      if (label) label.style.color = style.labelColor;
+  // ---- Request-form wizard: a REAL gate, not just a progress cue --------
+  // The Jinja markup renders every fieldset visible and un-hidden (so a
+  // no-JS visitor still gets one flowing page, exactly as before -- nothing
+  // here is required to submit the form). When this runs, it hides steps
+  // 2+ and only reveals the next one once the current step's required
+  // fields pass native validation, driving the [data-step-tracker] dots
+  // (STEP_NAMES below) to match the fieldset actually in view.
+  var STEP_NAMES = { 1: "details", 2: "photo", 3: "budget" };
+  var TRACKER_STYLE = {
+    current: { dotBg: "var(--brand)", dotColor: "#fff", labelColor: "var(--text)" },
+    done: { dotBg: "var(--brand-tint-bg)", dotColor: "var(--brand-text)", labelColor: "var(--text-secondary)" },
+    upcoming: { dotBg: "var(--border-soft)", dotColor: "var(--text-faint2)", labelColor: "var(--text-faint)" },
+  };
+
+  document.querySelectorAll("[data-wizard]").forEach(function (form) {
+    var steps = Array.prototype.slice.call(form.querySelectorAll("[data-wizard-step]"));
+    if (steps.length < 2) return; // nothing to gate (e.g. the photo-less revisit form)
+    var last = steps.length;
+    var tracker = document.querySelector("[data-step-tracker]");
+    var nextLabel = form.dataset.labelNext || "Next";
+    var backLabel = form.dataset.labelBack || "Back";
+
+    function stepEl(n) { return form.querySelector('[data-wizard-step="' + n + '"]'); }
+
+    function setTracker(n) {
+      if (!tracker) return;
+      steps.forEach(function (el) {
+        var stepNum = Number(el.dataset.wizardStep);
+        var name = STEP_NAMES[stepNum];
+        var row = tracker.querySelector('[data-step="' + name + '"]');
+        if (!row) return;
+        var state = stepNum === n ? "current" : (stepNum < n ? "done" : "upcoming");
+        var style = TRACKER_STYLE[state];
+        var dot = row.querySelector("[data-step-dot]");
+        var label = row.querySelector("[data-step-label]");
+        if (dot) { dot.style.background = style.dotBg; dot.style.color = style.dotColor; }
+        if (label) label.style.color = style.labelColor;
+      });
     }
-    var advancedPastDetails = false;
-    document.querySelectorAll('[data-step-source="details"]').forEach(function (field) {
-      field.addEventListener("focus", function () {
-        if (advancedPastDetails) return;
-        advancedPastDetails = true;
-        setStep("details", "done");
-        setStep("photo", "current");
+
+    function showStep(n) {
+      steps.forEach(function (el) {
+        el.hidden = Number(el.dataset.wizardStep) !== n;
       });
+      current = n;
+      setTracker(n);
+      var target = stepEl(n);
+      var focusable = target && target.querySelector("input:not([type=hidden]), textarea, select");
+      if (focusable) focusable.focus({ preventScroll: true });
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function validateStep(n) {
+      var el = stepEl(n);
+      if (!el) return true;
+      var fields = el.querySelectorAll("input, textarea, select");
+      for (var i = 0; i < fields.length; i++) {
+        if (!fields[i].checkValidity()) { fields[i].reportValidity(); return false; }
+      }
+      return true;
+    }
+
+    // Inject Back/Next controls at the end of each step -- keeping them out
+    // of the Jinja markup means a no-JS visitor never sees an inert button.
+    steps.forEach(function (el) {
+      var n = Number(el.dataset.wizardStep);
+      var nav = document.createElement("div");
+      nav.className = "flex gap-2 pt-1";
+      if (n > 1) {
+        var back = document.createElement("button");
+        back.type = "button";
+        back.className = "btn flex-1 justify-center";
+        back.textContent = backLabel;
+        back.addEventListener("click", function () { showStep(n - 1); });
+        nav.appendChild(back);
+      }
+      if (n < last) {
+        var next = document.createElement("button");
+        next.type = "button";
+        next.className = "btn-primary flex-1 justify-center";
+        next.textContent = nextLabel;
+        next.addEventListener("click", function () { if (validateStep(n)) showStep(n + 1); });
+        nav.appendChild(next);
+      }
+      if (nav.childNodes.length) {
+        var submitBtn = el.querySelector('button[type="submit"]');
+        if (submitBtn) el.insertBefore(nav, submitBtn); else el.appendChild(nav);
+      }
     });
-    document.querySelectorAll("[data-dropzone]").forEach(function (dz) {
-      dz.addEventListener("dropzone:filled", function () {
-        setStep("details", "done");
-        setStep("photo", "done");
-        setStep("budget", "current");
-      });
+
+    // A field in an earlier step is still a text input, so pressing Enter
+    // there would otherwise submit the form early (the browser's implicit
+    // submission picks the form's one <button type=submit>, in the last
+    // step, regardless of what's currently visible) -- redirect Enter to
+    // "advance the current step" instead, same as clicking Next.
+    form.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" || e.target.tagName === "TEXTAREA") return;
+      if (current >= last) return;
+      e.preventDefault();
+      if (validateStep(current)) showStep(current + 1);
     });
-    document.querySelectorAll('[data-step-source="budget"]').forEach(function (field) {
-      field.addEventListener("focus", function () {
-        setStep("details", "done");
-        setStep("budget", "current");
-      });
-    });
+
+    var current = 1;
+    var startAt = Number(form.dataset.wizardStart) || 1;
+    showStep(Math.min(Math.max(startAt, 1), last));
   });
 
   // ---- Landing page scroll-reveal ---------------------------------------

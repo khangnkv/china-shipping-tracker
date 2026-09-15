@@ -5,7 +5,8 @@
 
 <form method="post" class="card p-5">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <textarea name="lot_text" rows="6" required
+  <label class="label" for="lotText">Paste today's LOT list</label>
+  <textarea id="lotText" name="lot_text" rows="6" required
     class="input font-mono"
     placeholder="LOT รถ : 11278, 11279, ...&#10;LOT เรือ : ไม่มีตู้เรือเข้าไทย"></textarea>
   <button type="submit" class="btn-primary mt-3">{{ icon('clipboard-list') }} Match against orders</button>

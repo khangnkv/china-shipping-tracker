@@ -19,6 +19,7 @@ from PIL import Image, ImageOps
 from dotenv import load_dotenv
 from flask import Flask, request, session, redirect, url_for, render_template, flash, g
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -156,6 +157,36 @@ def set_security_headers(response):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "same-origin"
     return response
+
+
+# ---------- Friendly error pages ----------
+# Replaces Werkzeug/Flask's raw default pages (which drop the visitor out of
+# SINEX's chrome entirely -- no header, no way back, no LINE contact) at the
+# three points most likely to be hit mid-form: a too-large upload, a stale/
+# resubmitted form, or an unhandled server error. "Go back" relies on the
+# browser's own form-state restoration on back-navigation (bfcache/history)
+# to recover typed values -- Flask itself gets no chance to see the body on
+# a 413 (the request is rejected before it's read), so there is nothing
+# server-side to re-populate a template with in that case.
+
+def _error_page(code, title_key, body_key):
+    return render_template("error.html", code=code, title=t(title_key), body=t(body_key)), code
+
+
+@app.errorhandler(413)
+def too_large(e):
+    return _error_page(413, "error.413_title", "error.413_body")
+
+
+@app.errorhandler(CSRFError)
+def csrf_error(e):
+    return _error_page(400, "error.csrf_title", "error.csrf_body")
+
+
+@app.errorhandler(500)
+def server_error(e):
+    logger.error("unhandled server error: %s", e, exc_info=True)
+    return _error_page(500, "error.500_title", "error.500_body")
 
 
 # ---------- DB helpers ----------
@@ -602,6 +633,7 @@ TRANSLATIONS = {
     "track.delivered": {"en": "Your parcel has been delivered!", "th": "พัสดุของคุณถึงมือแล้ว!"},
     "track.not_found_title": {"en": "Order not found", "th": "ไม่พบคำสั่งซื้อ"},
     "track.not_found_body": {"en": "Please check your tracking code and try again.", "th": "กรุณาตรวจสอบรหัสติดตามแล้วลองใหม่อีกครั้ง"},
+    "track.not_found_home": {"en": "Go to homepage", "th": "กลับหน้าแรก"},
     "request.title": {"en": "Request an order", "th": "แจ้งความจำนงสั่งซื้อ"},
     "request.title_submitted": {"en": "Your order request", "th": "คำขอสั่งซื้อของคุณ"},
     "request.subtitle": {"en": "Tell us what you'd like to order and how to reach you — we'll take it from there.", "th": "บอกเราว่าอยากสั่งอะไรและติดต่อคุณได้ทางไหน ที่เหลือเราจัดการเอง"},
@@ -644,6 +676,12 @@ TRANSLATIONS = {
     "request.quote_awaiting": {"en": "Awaiting quote", "th": "รอแจ้งราคา"},
     "request.not_found_title": {"en": "Request not found", "th": "ไม่พบคำขอ"},
     "request.not_found_body": {"en": "Please check your link and try again.", "th": "กรุณาตรวจสอบลิงก์แล้วลองใหม่อีกครั้ง"},
+    "request.not_found_cta": {"en": "Submit a new request", "th": "ส่งคำขอใหม่"},
+    "request.error_required": {"en": "This is required.", "th": "กรุณากรอกข้อมูลนี้"},
+    "request.error_summary": {"en": "Please fix the highlighted fields below.", "th": "กรุณาแก้ไขช่องที่ไฮไลต์ไว้ด้านล่าง"},
+    "request.error_reattach_photo": {"en": "Please reattach your reference photo — it wasn't saved because of the error above.", "th": "กรุณาแนบรูปภาพอ้างอิงอีกครั้ง — รูปเดิมไม่ถูกบันทึกไว้เนื่องจากข้อผิดพลาดด้านบน"},
+    "request.wizard_next": {"en": "Next", "th": "ถัดไป"},
+    "request.wizard_back": {"en": "Back", "th": "ย้อนกลับ"},
     "terms.title": {"en": "Shipping Terms & Liability Disclaimer", "th": "ข้อกำหนดการจัดส่งและข้อจำกัดความรับผิดชอบ"},
     "terms.updated_label": {"en": "Last updated", "th": "อัปเดตล่าสุด"},
     "terms.intro": {"en": "Please read this before submitting a request. By checking the agreement box on the request form, you confirm you understand and accept these terms.", "th": "กรุณาอ่านก่อนส่งคำขอ การติ๊กยอมรับในแบบฟอร์มถือว่าคุณเข้าใจและยอมรับข้อกำหนดเหล่านี้"},
@@ -675,6 +713,13 @@ TRANSLATIONS = {
     "request.step_photo": {"en": "Photo", "th": "รูปภาพ"},
     "request.step_budget": {"en": "Budget", "th": "งบประมาณ"},
     "request.dropzone_hint": {"en": "Drag a photo here, or click to browse", "th": "ลากรูปมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์"},
+    "error.413_title": {"en": "That file is too large", "th": "ไฟล์มีขนาดใหญ่เกินไป"},
+    "error.413_body": {"en": "Photos must be under 5 MB. Please go back and choose a smaller image.", "th": "รูปภาพต้องมีขนาดไม่เกิน 5 MB กรุณาย้อนกลับแล้วเลือกไฟล์ที่เล็กลง"},
+    "error.csrf_title": {"en": "That page had expired", "th": "หน้านี้หมดอายุแล้ว"},
+    "error.csrf_body": {"en": "Your session timed out or the form was submitted twice. Please go back and try again.", "th": "เซสชันของคุณหมดอายุ หรือมีการส่งฟอร์มซ้ำ กรุณาย้อนกลับแล้วลองใหม่อีกครั้ง"},
+    "error.500_title": {"en": "Something went wrong on our end", "th": "เกิดข้อผิดพลาดจากทางเรา"},
+    "error.500_body": {"en": "Please try again in a moment. If it keeps happening, message us on LINE and we'll sort it out.", "th": "กรุณาลองใหม่อีกครั้งในอีกสักครู่ หากยังพบปัญหาอยู่ ทักแชท LINE หาเราได้เลย"},
+    "error.go_back": {"en": "Go back", "th": "ย้อนกลับ"},
 }
 
 
@@ -1708,13 +1753,32 @@ def new_request():
         budget = request.form.get("budget", "").strip()
         other_contact = request.form.get("other_contact", "").strip()
         agreed_terms = request.form.get("agree_terms") == "on"
+        photo_file = request.files.get("reference_image")
+        # A file input can't be re-populated by the server on re-render (browsers
+        # block it for security), so if one was attached this submit and we're
+        # about to bounce the form back, tell the customer explicitly rather
+        # than silently dropping their photo.
+        had_photo = bool(photo_file and photo_file.filename)
 
-        if not name or not phone or not item_description:
-            flash("Please fill in your name, phone number, and what you'd like to order.")
-            return render_template("request.html", request_row=None, values=request.form, submitted=False)
+        field_errors = {}
+        if not name:
+            field_errors["name"] = t("request.error_required")
+        if not phone:
+            field_errors["phone"] = t("request.error_required")
+        if not item_description:
+            field_errors["item_description"] = t("request.error_required")
+        if field_errors:
+            flash(t("request.error_summary"))
+            return render_template(
+                "request.html", request_row=None, values=request.form, submitted=False,
+                field_errors=field_errors, photo_reattach=had_photo, wizard_start_step=1,
+            )
         if not agreed_terms:
             flash(t("request.agree_terms_required"))
-            return render_template("request.html", request_row=None, values=request.form, submitted=False)
+            return render_template(
+                "request.html", request_row=None, values=request.form, submitted=False,
+                field_errors={}, photo_reattach=had_photo, wizard_start_step=3,
+            )
 
         db = get_db()
         now = datetime.utcnow().isoformat()
@@ -1731,7 +1795,10 @@ def new_request():
         db.commit()
         return redirect(url_for("view_request", request_code=request_code))
 
-    return render_template("request.html", request_row=None, values=_request_form_values(), submitted=False)
+    return render_template(
+        "request.html", request_row=None, values=_request_form_values(), submitted=False,
+        field_errors={}, photo_reattach=False, wizard_start_step=1,
+    )
 
 
 @app.route("/request/<request_code>", methods=["GET", "POST"])

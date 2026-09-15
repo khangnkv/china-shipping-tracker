@@ -27,6 +27,16 @@
   --brand-text: #c2560a;
   --input-border: #cbd5e1;
   --nav-bg: rgba(255, 255, 255, 0.85);
+  /* Quote-status chip tokens: light values chosen for >=4.5:1 text/bg
+     contrast (emerald-800-on-emerald-50, red-800-on-red-50 pairing),
+     unlike the hardcoded #059669/#dc2626-on-tint hexes these replace,
+     which measured 3.6:1/4.4:1 -- both under WCAG AA. */
+  --success-bg: #ecfdf5;
+  --success-text: #065f46;
+  --success-dot: #059669;
+  --danger-bg: #fef2f2;
+  --danger-text: #991b1b;
+  --danger-dot: #dc2626;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -49,6 +59,12 @@
     --brand-text: #ff9a52;
     --input-border: #3a4152;
     --nav-bg: rgba(24, 27, 33, 0.85);
+    --success-bg: rgba(16, 185, 129, 0.16);
+    --success-text: #6ee7b7;
+    --success-dot: #34d399;
+    --danger-bg: rgba(248, 113, 113, 0.16);
+    --danger-text: #fca5a5;
+    --danger-dot: #f87171;
   }
 }
 
@@ -71,6 +87,12 @@
   --brand-text: #ff9a52;
   --input-border: #3a4152;
   --nav-bg: rgba(24, 27, 33, 0.85);
+  --success-bg: rgba(16, 185, 129, 0.16);
+  --success-text: #6ee7b7;
+  --success-dot: #34d399;
+  --danger-bg: rgba(248, 113, 113, 0.16);
+  --danger-text: #fca5a5;
+  --danger-dot: #f87171;
 }
 
 @layer components {
@@ -113,6 +135,24 @@
     @apply mb-1.5 block text-sm font-medium;
     color: var(--text-secondary);
   }
+  .input-error {
+    border-color: var(--danger-dot) !important;
+  }
+  .input-error:focus {
+    border-color: var(--danger-dot) !important;
+    --tw-ring-color: var(--danger-bg);
+  }
+}
+
+/* Visible keyboard focus everywhere a click handler stands in for a real
+   link/button (e.g. the Orders table rows) -- browsers already draw this
+   for a native <a>/<button>, but a bare [tabindex] element doesn't always
+   get one by default depending on UA stylesheet, so make it explicit. */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 html {
