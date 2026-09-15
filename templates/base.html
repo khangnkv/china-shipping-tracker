@@ -49,12 +49,13 @@
     {% if messages %}
       <div class="mb-4 space-y-2">
         {% for m in messages %}
-          <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{{ m }}</div>
+          <div class="js-toast rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{{ m }}</div>
         {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
   {% block content %}{% endblock %}
 </main>
+<script src="{{ url_for('static', filename='interactive.js') }}" defer></script>
 </body>
 </html>

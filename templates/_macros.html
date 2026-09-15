@@ -84,10 +84,10 @@
    @media(prefers-color-scheme) query decides. Requires theme_pref in
    context -- import this macro "with context". #}
 {% macro theme_switch() -%}
-<div class="inline-flex items-center gap-0.5 rounded-full p-0.5" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+<div data-theme-switch class="inline-flex items-center gap-0.5 rounded-full p-0.5" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
   {% for mode, ic, label in [('light', 'sun', 'Light'), ('auto', 'monitor', 'Auto'), ('dark', 'moon', 'Dark')] %}
-  <a href="{{ url_for('set_theme', mode=mode) }}"
-     class="flex h-7 w-7 items-center justify-center rounded-full transition"
+  <a href="{{ url_for('set_theme', mode=mode) }}" data-mode="{{ mode }}"
+     class="flex h-7 w-7 items-center justify-center rounded-full transition active:scale-90"
      style="{% if theme_pref == mode %}background: var(--brand); color: #fff;{% else %}color: var(--text-muted);{% endif %}"
      title="{{ label }}" aria-label="{{ label }} theme">{{ icon(ic, 'h-3.5 w-3.5') }}</a>
   {% endfor %}

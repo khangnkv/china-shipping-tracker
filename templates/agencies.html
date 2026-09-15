@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icon %}
 {% block content %}
-<h2 class="mb-1 text-lg font-bold text-slate-900">Agencies</h2>
-<p class="mb-4 text-sm text-slate-400">Internal only — never shown to customers. Set the route each agency covers.</p>
+<h2 class="mb-1 text-lg font-bold">Agencies</h2>
+<p class="mb-4 text-sm" style="color: var(--text-faint);">Internal only — never shown to customers. Set the route each agency covers.</p>
 
 <form method="post" class="card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -31,12 +31,12 @@
     <input class="input mt-2 hidden" id="toOther" name="to_country_text" placeholder="Country name">
   </div>
   <div class="flex items-end pb-2.5">
-    <label class="flex items-center gap-2 text-sm text-slate-700">
-      <input type="checkbox" name="two_way" class="h-4 w-4 rounded border-slate-300"> Two-way route
+    <label class="flex items-center gap-2 text-sm" style="color: var(--text-secondary);">
+      <input type="checkbox" name="two_way" class="h-4 w-4 rounded" style="border-color: var(--input-border);"> Two-way route
     </label>
   </div>
   <div>
-    <label class="label">Link <span class="font-normal text-slate-400">(optional)</span></label>
+    <label class="label">Link <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label>
     <input class="input" name="url" type="url" placeholder="https://agency-site.com">
   </div>
 
@@ -49,32 +49,32 @@
   {% if agencies %}
   <table class="w-full">
     <thead>
-      <tr class="border-b border-slate-200 bg-slate-50/50 text-left">
-        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Agency</th>
-        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Route</th>
-        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Link</th>
-        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+      <tr class="text-left" style="border-bottom: 1px solid var(--border); background: var(--bg-card-soft);">
+        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide" style="color: var(--text-muted);">Agency</th>
+        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide" style="color: var(--text-muted);">Route</th>
+        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide" style="color: var(--text-muted);">Link</th>
+        <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide" style="color: var(--text-muted);">Status</th>
         <th class="px-4 py-2.5"></th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-slate-100">
+    <tbody>
       {% for a in agencies %}
-      <tr>
-        <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ a.name }}</td>
-        <td class="px-4 py-3 text-sm text-slate-600">
+      <tr style="border-bottom: 1px solid var(--border-soft);">
+        <td class="px-4 py-3 text-sm font-medium">{{ a.name }}</td>
+        <td class="px-4 py-3 text-sm" style="color: var(--text-secondary);">
           {% set from_name = a.from_country_name or a.from_country_text %}
           {% set to_name = a.to_country_name or a.to_country_text %}
           {% if from_name or to_name %}
             {{ from_name or "?" }} {{ "⇄" if a.two_way else "→" }} {{ to_name or "?" }}
           {% else %}
-            <span class="text-slate-300">—</span>
+            <span style="color: var(--text-faint2);">—</span>
           {% endif %}
         </td>
         <td class="px-4 py-3 text-sm">
-          {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Visit →</a>{% else %}<span class="text-slate-300">—</span>{% endif %}
+          {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Visit →</a>{% else %}<span style="color: var(--text-faint2);">—</span>{% endif %}
         </td>
         <td class="px-4 py-3 text-sm">
-          {% if a.active %}<span class="text-green-600">Active</span>{% else %}<span class="text-slate-400">Inactive</span>{% endif %}
+          {% if a.active %}<span class="text-green-600">Active</span>{% else %}<span style="color: var(--text-faint);">Inactive</span>{% endif %}
         </td>
         <td class="px-4 py-3 text-right">
           <form method="post" class="inline">
@@ -89,14 +89,14 @@
     </tbody>
   </table>
   {% else %}
-  <p class="py-10 text-center text-sm text-slate-400">No agencies yet — add one above.</p>
+  <p class="py-10 text-center text-sm" style="color: var(--text-faint);">No agencies yet — add one above.</p>
   {% endif %}
 </div>
 
 {# Countries: internal bullet list, extendable/removable independent of agencies. #}
 <section class="card p-4">
-  <h3 class="mb-1 text-sm font-semibold text-slate-900">Countries</h3>
-  <p class="mb-3 text-xs text-slate-400">Used to build agency routes above. Add or deactivate as your routes change.</p>
+  <h3 class="mb-1 text-sm font-semibold">Countries</h3>
+  <p class="mb-3 text-xs" style="color: var(--text-faint);">Used to build agency routes above. Add or deactivate as your routes change.</p>
   <form method="post" class="mb-3 flex items-end gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="add_country">
@@ -106,16 +106,16 @@
   <ul class="space-y-1.5">
     {% for c in countries %}
     <li class="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 {{ '' if c.active else 'opacity-50' }}">
-      <span class="flex items-center gap-2 text-sm text-slate-700">
-        <span class="h-1.5 w-1.5 rounded-full {{ 'bg-slate-900' if c.active else 'bg-slate-300' }}"></span>
+      <span class="flex items-center gap-2 text-sm" style="color: var(--text-secondary);">
+        <span class="h-1.5 w-1.5 rounded-full" style="background: {{ 'var(--brand)' if c.active else 'var(--text-faint2)' }};"></span>
         {{ c.name }}
-        {% if not c.active %}<span class="text-xs text-slate-400">(inactive)</span>{% endif %}
+        {% if not c.active %}<span class="text-xs" style="color: var(--text-faint);">(inactive)</span>{% endif %}
       </span>
       <form method="post" class="inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="toggle_country">
         <input type="hidden" name="country_id" value="{{ c.id }}">
-        <button type="submit" class="text-xs font-medium text-slate-400 hover:text-slate-600">{{ 'Remove' if c.active else 'Restore' }}</button>
+        <button type="submit" class="text-xs font-medium transition" style="color: var(--text-faint);">{{ 'Remove' if c.active else 'Restore' }}</button>
       </form>
     </li>
     {% endfor %}

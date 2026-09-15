@@ -3,15 +3,15 @@
 {% block content %}
 {% set p = order_profit(order) %}
 
-<a href="{{ url_for('orders_page') }}" class="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-slate-700">
+<a href="{{ url_for('orders_page') }}" class="mb-4 inline-flex items-center gap-1 text-sm transition" style="color: var(--text-muted);">
   <span class="rotate-180">{{ icon('chevron-right') }}</span> Back to orders
 </a>
 
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
-    <h2 class="text-lg font-bold text-slate-900">{{ order.customer_name }}</h2>
-    <p class="mt-0.5 text-sm text-slate-400">
-      Tracking no. <span class="font-mono font-medium text-slate-600">{{ order.link_code }}</span>
+    <h2 class="text-lg font-bold">{{ order.customer_name }}</h2>
+    <p class="mt-0.5 text-sm" style="color: var(--text-faint);">
+      Tracking no. <span class="font-mono font-medium" style="color: var(--text-secondary);">{{ order.link_code }}</span>
       · Internal: {{ order.tracking_mode }} {{ order.tracking_lot }}
       · LINE: {% if order.line_user_id %}Linked{% else %}Not linked{% endif %}
     </p>
@@ -21,7 +21,7 @@
 
 {# Status advance #}
 <section class="card mb-5 p-5">
-  <h3 class="mb-3 text-sm font-semibold text-slate-900">Update status</h3>
+  <h3 class="mb-3 text-sm font-semibold">Update status</h3>
   <form method="post" class="flex flex-wrap items-end gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="advance_status">
@@ -31,7 +31,7 @@
         {% for s in STATUS_ORDER %}<option value="{{ s }}" {{ 'selected' if s == order.status else '' }}>{{ loop.index }}. {{ CUSTOMER_STATUS[s] }}</option>{% endfor %}
       </select>
     </div>
-    <div class="flex-1"><label class="label">Note <span class="font-normal text-slate-400">(optional)</span></label><input class="input" name="note" placeholder="e.g. cleared customs"></div>
+    <div class="flex-1"><label class="label">Note <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label><input class="input" name="note" placeholder="e.g. cleared customs"></div>
     <div id="carrierWrap" class="hidden basis-full grid gap-3 sm:grid-cols-2">
       <div><label class="label">Local carrier</label><input class="input" name="local_carrier" value="{{ order.local_carrier or '' }}" placeholder="Flash Express / Kerry / …"></div>
       <div><label class="label">Local tracking no.</label><input class="input" name="local_tracking_no" value="{{ order.local_tracking_no or '' }}" placeholder="TH..."></div>
@@ -47,7 +47,7 @@
      are normal; they're intentionally NOT part of the status-advance form
      above so correcting them never writes a status_log entry. #}
   <section class="card p-5 lg:col-span-2">
-    <h3 class="mb-4 text-sm font-semibold text-slate-900">Order info</h3>
+    <h3 class="mb-4 text-sm font-semibold">Order info</h3>
     <div class="grid gap-4 sm:grid-cols-3">
       <div>
         <label class="label">Order date</label>
@@ -66,25 +66,25 @@
       </div>
     </div>
     <div class="mt-4">
-      <label class="label">Shipping info <span class="font-normal text-slate-400">(name/phone/address the customer sent — submitted via LINE or typed here)</span></label>
+      <label class="label">Shipping info <span class="font-normal" style="color: var(--text-faint);">(name/phone/address the customer sent — submitted via LINE or typed here)</span></label>
       <textarea class="input" name="shipping_info" rows="2">{{ order.shipping_info or '' }}</textarea>
     </div>
   </section>
 
   {# Product #}
   <section class="card p-5 lg:col-span-2">
-    <h3 class="mb-4 text-sm font-semibold text-slate-900">Product</h3>
+    <h3 class="mb-4 text-sm font-semibold">Product</h3>
     <div class="space-y-4">
       <div>
-        <label class="label">Source link <span class="font-normal text-slate-400">(internal, never shown to customer)</span></label>
+        <label class="label">Source link <span class="font-normal" style="color: var(--text-faint);">(internal, never shown to customer)</span></label>
         <div class="flex gap-2">
           <input class="input" name="source_link" value="{{ order.source_link or '' }}" placeholder="https://item.taobao.com/...">
         </div>
         <button form="fetchImgForm" type="submit" class="btn mt-2">{{ icon('search') }} Fetch image from link</button>
-        <span class="ml-1 text-xs text-slate-400">(best-effort — Xianyu/Taobao often block; paste or drag instead)</span>
+        <span class="ml-1 text-xs" style="color: var(--text-faint);">(best-effort — Xianyu/Taobao often block; paste or drag instead)</span>
       </div>
       <div>
-        <label class="label">Chinese title <span class="font-normal text-slate-400">(auto-translated on save if EN/TH left blank)</span></label>
+        <label class="label">Chinese title <span class="font-normal" style="color: var(--text-faint);">(auto-translated on save if EN/TH left blank)</span></label>
         <input class="input" name="item_title_zh" value="{{ order.item_title_zh or '' }}">
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
@@ -92,32 +92,32 @@
         <div><label class="label">Thai (shown to customer)</label><input class="input" name="item_desc_th" value="{{ order.item_desc_th or '' }}"></div>
       </div>
       <div>
-        <label class="label">Product image <span class="font-normal text-slate-400">(drag, paste, or upload — JPEG/PNG/WEBP, max 5 MB)</span></label>
-        <div id="dropzone" class="rounded-lg border-2 border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 transition">
+        <label class="label">Product image <span class="font-normal" style="color: var(--text-faint);">(drag, paste, or upload — JPEG/PNG/WEBP, max 5 MB)</span></label>
+        <div id="dropzone" class="rounded-lg border-2 border-dashed p-4 text-center text-sm transition" style="border-color: var(--input-border); color: var(--text-faint);">
           Drag an image here, or paste from clipboard, or
           <input class="input mt-2" type="file" name="image" id="imgInput" accept="image/jpeg,image/png,image/webp">
         </div>
         <img id="preview" src="{{ url_for('static', filename=order.item_image) if order.item_image else '' }}"
-             alt="product" class="mt-3 max-w-[220px] rounded-lg border border-slate-200 {{ '' if order.item_image else 'hidden' }}">
+             alt="product" class="mt-3 max-w-[220px] rounded-lg {{ 'hidden' if not order.item_image else '' }}" style="border: 1px solid var(--border);">
       </div>
     </div>
   </section>
 
   {# Money #}
   <section class="card p-5">
-    <h3 class="mb-4 text-sm font-semibold text-slate-900">Money <span class="font-normal text-slate-400">(baht)</span></h3>
+    <h3 class="mb-4 text-sm font-semibold">Money <span class="font-normal" style="color: var(--text-faint);">(baht)</span></h3>
     <div class="grid grid-cols-2 gap-3">
       <div><label class="label">Payment</label><input class="input" name="payment_amount" type="number" step="any" value="{{ order.payment_amount if order.payment_amount is not none else '' }}"></div>
       <div><label class="label">Item cost</label><input class="input" name="item_cost" type="number" step="any" value="{{ order.item_cost if order.item_cost is not none else '' }}"></div>
       <div><label class="label">China ship</label><input class="input" name="china_ship_fee" type="number" step="any" value="{{ order.china_ship_fee if order.china_ship_fee is not none else '' }}"></div>
       <div><label class="label">House ship</label><input class="input" name="house_ship_fee" type="number" step="any" value="{{ order.house_ship_fee if order.house_ship_fee is not none else '' }}"></div>
     </div>
-    <div class="mt-4 rounded-lg bg-slate-50 p-3">
-      <div class="flex items-center justify-between"><span class="text-sm text-slate-500">Profit</span><span class="text-lg font-bold {{ 'text-green-600' if p.profit >= 0 else 'text-red-600' }}">฿{{ "{:,.0f}".format(p.profit) }}</span></div>
-      <div class="mt-1 flex items-center justify-between"><span class="text-sm text-slate-500">Margin</span><span class="text-sm font-medium text-slate-700">{{ "%.1f%%"|format(p.margin) if p.margin is not none else "—" }}</span></div>
+    <div class="mt-4 rounded-lg p-3" style="background: var(--bg-card-soft);">
+      <div class="flex items-center justify-between"><span class="text-sm" style="color: var(--text-muted);">Profit</span><span class="text-lg font-bold" style="color: {{ '#059669' if p.profit >= 0 else '#dc2626' }};">฿{{ "{:,.0f}".format(p.profit) }}</span></div>
+      <div class="mt-1 flex items-center justify-between"><span class="text-sm" style="color: var(--text-muted);">Margin</span><span class="text-sm font-medium" style="color: var(--text-secondary);">{{ "%.1f%%"|format(p.margin) if p.margin is not none else "—" }}</span></div>
     </div>
 
-    <h3 class="mb-2 mt-5 text-sm font-semibold text-slate-900">Tracking &amp; agency</h3>
+    <h3 class="mb-2 mt-5 text-sm font-semibold">Tracking &amp; agency</h3>
     <div class="space-y-3">
       <div>
         <label class="label">Agency</label>
@@ -143,13 +143,13 @@
 
 {# Customer tracking #}
 <section class="card mt-5 p-5">
-  <h3 class="mb-3 text-sm font-semibold text-slate-900">Customer tracking</h3>
+  <h3 class="mb-3 text-sm font-semibold">Customer tracking</h3>
   <div class="flex flex-wrap items-center gap-6">
-    <div class="w-[160px] shrink-0">{{ qr|safe }}</div>
+    <div class="w-[160px] shrink-0 rounded-lg bg-white p-2">{{ qr|safe }}</div>
     <div>
-      <p class="text-xs text-slate-400">Public tracking page</p>
+      <p class="text-xs" style="color: var(--text-faint);">Public tracking page</p>
       <a href="{{ track_url }}" target="_blank" class="break-all text-sm font-medium text-blue-600 hover:underline">{{ track_url }}</a>
-      <p class="mt-2 text-xs text-slate-400">Customer tracking number: <span class="font-mono font-medium text-slate-600">{{ order.link_code }}</span></p>
+      <p class="mt-2 text-xs" style="color: var(--text-faint);">Customer tracking number: <span class="font-mono font-medium" style="color: var(--text-secondary);">{{ order.link_code }}</span></p>
     </div>
   </div>
 </section>
@@ -170,8 +170,8 @@
     preview.src = URL.createObjectURL(file); preview.classList.remove('hidden');
   }
   input.addEventListener('change', () => input.files[0] && setFile(input.files[0]));
-  ['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-slate-500'); }));
-  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-slate-500'); }));
+  ['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.style.borderColor = 'var(--brand)'; }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.style.borderColor = ''; }));
   dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) setFile(f); });
   window.addEventListener('paste', e => {
     for (const item of e.clipboardData.items) if (item.type.startsWith('image/')) setFile(item.getAsFile());

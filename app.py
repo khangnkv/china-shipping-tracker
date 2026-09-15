@@ -675,6 +675,7 @@ def quote_status(item_cost, shipping_cost, budget_text):
 
 
 app.jinja_env.globals["quote_status"] = quote_status
+app.jinja_env.globals["budget_number"] = _budget_number
 
 
 def translate_url(text):

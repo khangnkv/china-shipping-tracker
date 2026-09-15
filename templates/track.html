@@ -139,12 +139,13 @@
 
     {% if LINE_CONTACT %}
     <a href="https://line.me/ti/p/~{{ LINE_CONTACT.lstrip('@') }}" target="_blank" rel="noopener noreferrer"
-       class="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#05b04c]">
+       class="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#05b04c] active:scale-[0.98]">
       {{ icon('message-circle', 'h-5 w-5') }} {{ t('track.contact_line') }}
     </a>
     <p class="mt-3 text-center text-xs" style="color: var(--text-faint);">{{ LINE_CONTACT }}</p>
     {% endif %}
   </div>
 {% endif %}
+<script src="{{ url_for('static', filename='interactive.js') }}" defer></script>
 </body>
 </html>

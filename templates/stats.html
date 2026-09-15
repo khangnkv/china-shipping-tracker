@@ -1,32 +1,34 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icon %}
 {% block content %}
-{# Chart colors (validated dataviz palette, light mode) read by Chart.js via getComputedStyle. #}
+{# Chart colors read by Chart.js via getComputedStyle -- pointed at the real
+   theme tokens (tailwind.input.css) so axis labels/gridlines follow dark
+   mode too; --series-1/2 stay literal (decorative, not a contrast issue). #}
 <style>
-  .viz-root { --surface-1:#fcfcfb; --text-secondary:#52514e; --muted:#898781; --grid:#e1e0d9; --series-1:#2a78d6; --series-2:#1baf7a; }
+  .viz-root { --surface-1: var(--bg-card); --text-secondary: var(--text-muted); --muted: var(--text-faint); --grid: var(--border); --series-1:#2a78d6; --series-2:#1baf7a; }
 </style>
 
 <div class="viz-root">
-<h2 class="mb-4 text-lg font-bold text-slate-900">Analytics</h2>
+<h2 class="mb-4 text-lg font-bold">Analytics</h2>
 
 <div class="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Total profit</p><p class="mt-1 text-2xl font-bold text-slate-900">฿{{ "{:,.0f}".format(total_profit) }}</p></div>
-  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Total revenue</p><p class="mt-1 text-2xl font-bold text-slate-900">฿{{ "{:,.0f}".format(total_revenue) }}</p></div>
-  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Avg margin</p><p class="mt-1 text-2xl font-bold text-slate-900">{{ "%.1f%%"|format(avg_margin) if avg_margin is not none else "—" }}</p></div>
-  <div class="card p-4"><p class="text-xs font-medium text-slate-500">Avg transit (days)</p><p class="mt-1 text-2xl font-bold text-slate-900">{{ "%.1f"|format(avg_transit) if avg_transit is not none else "—" }}</p></div>
+  <div class="card p-4"><p class="text-xs font-medium" style="color: var(--text-muted);">Total profit</p><p class="mt-1 text-2xl font-bold">฿{{ "{:,.0f}".format(total_profit) }}</p></div>
+  <div class="card p-4"><p class="text-xs font-medium" style="color: var(--text-muted);">Total revenue</p><p class="mt-1 text-2xl font-bold">฿{{ "{:,.0f}".format(total_revenue) }}</p></div>
+  <div class="card p-4"><p class="text-xs font-medium" style="color: var(--text-muted);">Avg margin</p><p class="mt-1 text-2xl font-bold">{{ "%.1f%%"|format(avg_margin) if avg_margin is not none else "—" }}</p></div>
+  <div class="card p-4"><p class="text-xs font-medium" style="color: var(--text-muted);">Avg transit (days)</p><p class="mt-1 text-2xl font-bold">{{ "%.1f"|format(avg_transit) if avg_transit is not none else "—" }}</p></div>
 </div>
 
 {# Agency comparison #}
 <div class="card mb-5 p-5">
   <div class="mb-3 flex items-center justify-between">
-    <h3 class="text-sm font-semibold text-slate-900">Agency comparison <span class="font-normal text-slate-400">(fastest first)</span></h3>
-    {% if latest_agency %}<span class="text-xs text-slate-400">Latest used: <span class="font-medium text-slate-600">{{ latest_agency }}</span></span>{% endif %}
+    <h3 class="text-sm font-semibold">Agency comparison <span class="font-normal" style="color: var(--text-faint);">(fastest first)</span></h3>
+    {% if latest_agency %}<span class="text-xs" style="color: var(--text-faint);">Latest used: <span class="font-medium" style="color: var(--text-secondary);">{{ latest_agency }}</span></span>{% endif %}
   </div>
   {% if agencies %}
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>
-        <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+        <tr class="text-left text-xs uppercase tracking-wide" style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
           <th class="py-2 pr-4">Agency</th><th class="py-2 pr-4 text-right">Orders</th>
           <th class="py-2 pr-4 text-right">Avg days</th><th class="py-2 pr-4 text-right">China</th>
           <th class="py-2 pr-4 text-right">Cross-border</th><th class="py-2 pr-4 text-right">Last mile</th>
@@ -34,10 +36,10 @@
           <th class="py-2 text-right">฿/day</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-slate-100">
+      <tbody>
         {% for a in agencies %}
-        <tr>
-          <td class="py-2 pr-4 font-medium text-slate-900">{{ a.name }}</td>
+        <tr style="border-bottom: 1px solid var(--border-soft);">
+          <td class="py-2 pr-4 font-medium">{{ a.name }}</td>
           <td class="py-2 pr-4 text-right">{{ a.count }}</td>
           <td class="py-2 pr-4 text-right font-medium">{{ "%.1f"|format(a.avg_total) if a.avg_total is not none else "—" }}</td>
           <td class="py-2 pr-4 text-right">{{ "%.1f"|format(a.avg_china) if a.avg_china is not none else "—" }}</td>
@@ -53,35 +55,35 @@
   </div>
   <div class="mt-4"><canvas id="agencyChart"></canvas></div>
   {% else %}
-  <p class="py-6 text-center text-sm text-slate-400">No agency data yet — assign agencies to orders to compare them.</p>
+  <p class="py-6 text-center text-sm" style="color: var(--text-faint);">No agency data yet — assign agencies to orders to compare them.</p>
   {% endif %}
 </div>
 
 <div class="grid gap-5 lg:grid-cols-2">
   <div class="card p-5">
-    <h3 class="mb-3 text-sm font-semibold text-slate-900">Orders by status</h3>
+    <h3 class="mb-3 text-sm font-semibold">Orders by status</h3>
     <table class="w-full text-sm">
-      <thead><tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th class="py-2">Status</th><th class="py-2 text-right">Count</th></tr></thead>
-      <tbody class="divide-y divide-slate-100">
-        {% for s, c in status_counts.items() %}<tr><td class="py-2 text-slate-700">{{ CUSTOMER_STATUS.get(s, s) }}</td><td class="py-2 text-right font-medium">{{ c }}</td></tr>{% endfor %}
+      <thead><tr class="text-left text-xs uppercase tracking-wide" style="border-bottom: 1px solid var(--border); color: var(--text-muted);"><th class="py-2">Status</th><th class="py-2 text-right">Count</th></tr></thead>
+      <tbody>
+        {% for s, c in status_counts.items() %}<tr style="border-bottom: 1px solid var(--border-soft);"><td class="py-2" style="color: var(--text-secondary);">{{ CUSTOMER_STATUS.get(s, s) }}</td><td class="py-2 text-right font-medium">{{ c }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
   <div class="card p-5">
-    <h3 class="mb-3 text-sm font-semibold text-slate-900">By mode</h3>
+    <h3 class="mb-3 text-sm font-semibold">By mode</h3>
     <table class="w-full text-sm">
-      <thead><tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500"><th class="py-2">Mode</th><th class="py-2 text-right">Count</th><th class="py-2 text-right">Profit</th></tr></thead>
-      <tbody class="divide-y divide-slate-100">
-        {% for m, vv in by_mode.items() %}<tr><td class="py-2 text-slate-700">{{ m }}</td><td class="py-2 text-right font-medium">{{ vv.count }}</td><td class="py-2 text-right font-medium">฿{{ "{:,.0f}".format(vv.profit) }}</td></tr>{% endfor %}
+      <thead><tr class="text-left text-xs uppercase tracking-wide" style="border-bottom: 1px solid var(--border); color: var(--text-muted);"><th class="py-2">Mode</th><th class="py-2 text-right">Count</th><th class="py-2 text-right">Profit</th></tr></thead>
+      <tbody>
+        {% for m, vv in by_mode.items() %}<tr style="border-bottom: 1px solid var(--border-soft);"><td class="py-2" style="color: var(--text-secondary);">{{ m }}</td><td class="py-2 text-right font-medium">{{ vv.count }}</td><td class="py-2 text-right font-medium">฿{{ "{:,.0f}".format(vv.profit) }}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
   <div class="card p-5">
-    <h3 class="mb-3 text-sm font-semibold text-slate-900">Monthly profit</h3>
+    <h3 class="mb-3 text-sm font-semibold">Monthly profit</h3>
     <canvas id="monthlyChart"></canvas>
   </div>
   <div class="card p-5">
-    <h3 class="mb-3 text-sm font-semibold text-slate-900">Orders by mode</h3>
+    <h3 class="mb-3 text-sm font-semibold">Orders by mode</h3>
     <canvas id="modeChart"></canvas>
   </div>
 </div>

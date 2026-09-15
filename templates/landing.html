@@ -27,7 +27,7 @@
     <h1 class="text-2xl font-extrabold leading-snug">{{ t('landing.title') }}</h1>
     <p class="mt-2.5 text-sm" style="color: var(--text-secondary);">{{ t('landing.subtitle') }}</p>
     <a href="{{ url_for('new_request') }}"
-       class="mt-5 flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-white shadow-sm transition"
+       class="mt-5 flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
        style="background: var(--brand); box-shadow: 0 10px 24px -8px var(--brand-shadow);">
       {{ t('landing.cta') }}{{ icon('arrow-right', 'h-4 w-4') }}
     </a>
@@ -47,7 +47,7 @@
       ('landing.step4_title', 'landing.step4_body'),
     ] %}
     {% for title_key, body_key in steps %}
-    <div class="flex gap-3">
+    <div class="reveal flex gap-3" style="transition-delay: {{ loop.index0 * 60 }}ms;">
       <div class="flex flex-col items-center">
         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
              style="{% if loop.last %}background: var(--brand); color: #fff;{% else %}background: var(--brand-tint-bg); color: var(--brand-text);{% endif %}">{{ loop.index }}</div>
@@ -63,7 +63,7 @@
 
   {# Trust strip #}
   <p class="mb-3 mt-7 text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('landing.trust_title') }}</p>
-  <div class="mb-2.5 grid grid-cols-2 gap-2.5">
+  <div class="reveal mb-2.5 grid grid-cols-2 gap-2.5">
     <div class="card p-3.5">
       <p class="text-lg font-extrabold">[PLACEHOLDER]</p>
       <p class="mt-0.5 text-xs" style="color: var(--text-muted);">shipments delivered</p>
@@ -73,7 +73,7 @@
       <p class="mt-0.5 text-xs" style="color: var(--text-muted);">years shipping China → Thailand</p>
     </div>
   </div>
-  <div class="card flex items-center gap-3 p-3.5">
+  <div class="reveal card flex items-center gap-3 p-3.5">
     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style="background: rgba(6,199,85,0.12);">
       {{ icon('message-circle', 'h-5 w-5 text-[#06C755]') }}
     </span>
@@ -87,12 +87,13 @@
 <div class="sticky bottom-0 px-4 pb-5 pt-3" style="background: linear-gradient(to top, var(--bg-page) 65%, transparent);">
   <div class="mx-auto max-w-md">
     <a href="{{ url_for('new_request') }}"
-       class="flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-white shadow-sm"
+       class="flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
        style="background: var(--brand); box-shadow: 0 10px 24px -8px var(--brand-shadow);">
       {{ t('landing.cta') }}{{ icon('arrow-right', 'h-4 w-4') }}
     </a>
   </div>
 </div>
 
+<script src="{{ url_for('static', filename='interactive.js') }}" defer></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
 {% if threads %}
 <div class="space-y-4">
   {% for t in threads %}
-  <details class="card p-5" {{ 'open' if t.flagged_count > 0 else '' }}>
+  <details class="js-accordion card p-5" {{ 'open' if t.flagged_count > 0 else '' }}>
     <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         {% if t.flagged_count > 0 %}<span class="h-2 w-2 shrink-0 rounded-full" style="background: var(--brand);"></span>{% endif %}
@@ -17,6 +17,7 @@
       <span class="text-xs" style="color: var(--text-faint);">{{ t.last_at | local_dt }}</span>
     </summary>
 
+    <div class="js-accordion-body">
     <div class="mt-4 max-h-96 space-y-3 overflow-y-auto border-t pt-4" style="border-color: var(--border-soft);">
       {% for m in history[t.customer_id] %}
       <div class="flex {{ 'justify-end' if m.direction == 'out' else 'justify-start' }}">
@@ -46,6 +47,7 @@
     {% else %}
     <p class="mt-4 border-t pt-4 text-xs" style="border-color: var(--border-soft); color: var(--text-faint);">Not currently linked to LINE — can't push a reply.</p>
     {% endif %}
+    </div>
   </details>
   {% endfor %}
 </div>
