@@ -140,6 +140,7 @@
     {% endif %}
 
     <form method="post" enctype="multipart/form-data" class="card space-y-4 p-5"
+          data-loading-text="{{ t('request.saving') if submitted else t('request.submitting') }}"
           {% if not submitted %}data-wizard data-wizard-start="{{ wizard_start_step or 1 }}"
           data-label-next="{{ t('request.wizard_next') }}" data-label-back="{{ t('request.wizard_back') }}"{% endif %}>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

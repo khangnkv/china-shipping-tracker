@@ -46,7 +46,7 @@
     <a href="{{ url_for('landing') }}" class="btn-primary mt-6 w-full max-w-xs justify-center">{{ t('track.not_found_home') }}</a>
   </div>
   {% else %}
-  <form method="post" class="card space-y-4 p-5">
+  <form method="post" class="card space-y-4 p-5" data-loading-text="{{ t('feedback.sending') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
       <label class="label" for="fbMessage">{{ t('feedback.message_label') }}</label>

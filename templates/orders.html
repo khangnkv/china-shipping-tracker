@@ -40,6 +40,7 @@
   </div>
 
   <form method="post" action="{{ url_for('new_order') }}" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        data-loading-text="Creating…"
         onsubmit="document.getElementById('sourceBlob').value = document.getElementById('blob').value;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="source_blob" id="sourceBlob">

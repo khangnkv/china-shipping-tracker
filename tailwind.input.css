@@ -258,6 +258,32 @@ button:focus-visible,
   outline-offset: 2px;
 }
 
+/* .card already carries a transition-property list (background/border/
+   shadow/transform) but never actually changed any of them on :hover --
+   prepared, never finished. Rather than apply a hover lift to every .card
+   sitewide (most are informational, not clickable -- a hover affordance
+   on a non-clickable card is a lie), .card-interactive is opt-in, for a
+   .card that IS its own click target (e.g. a whole card wrapped in <a>). */
+.card-interactive:hover {
+  border-color: var(--brand-tint-border);
+  box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
+/* Track timeline's current-stage dot: a slow pulse signals "this is where
+   things are moving right now" instead of sitting as identically static
+   as the done/upcoming dots. Respects reduced-motion. */
+@keyframes stage-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--brand-tint-border); }
+  50% { box-shadow: 0 0 0 8px var(--brand-tint-border); }
+}
+.stage-pulse {
+  animation: stage-pulse 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-pulse { animation: none; }
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

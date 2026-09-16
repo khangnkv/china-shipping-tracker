@@ -63,7 +63,7 @@
     <span id="custSplitMsg" class="ml-2 text-xs" style="color: var(--text-faint);"></span>
   </div>
 
-  <form method="post" class="grid gap-3 sm:grid-cols-2"
+  <form method="post" class="grid gap-3 sm:grid-cols-2" data-loading-text="Saving…"
         onsubmit="document.getElementById('custSourceBlob').value = document.getElementById('custBlob').value;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="edit_customer">
@@ -88,7 +88,7 @@
     ] | join("\n") }}</textarea>
 </section>
 
-<form method="post" enctype="multipart/form-data" class="grid gap-5 lg:grid-cols-3">
+<form method="post" enctype="multipart/form-data" class="grid gap-5 lg:grid-cols-3" data-loading-text="Saving…">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   {# Order info — date/mode/LOT are editable here since mistakes at creation

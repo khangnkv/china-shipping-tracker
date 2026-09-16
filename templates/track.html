@@ -54,7 +54,7 @@
     <p class="mb-2.5 mt-5 text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('track.lookup_results_title') }}</p>
     <div class="space-y-2">
       {% for o in lookup_results %}
-      <a href="{{ url_for('track', link_code=o.link_code) }}" class="card flex items-center justify-between gap-3 p-4 transition active:scale-[0.99]">
+      <a href="{{ url_for('track', link_code=o.link_code) }}" class="card card-interactive flex items-center justify-between gap-3 p-4 transition active:scale-[0.99]">
         <div class="min-w-0">
           <p class="font-mono text-xs" style="color: var(--text-faint);">{{ o.link_code }}</p>
           <p class="truncate text-sm font-medium">{{ o.item_desc_en or o.item_title_zh or o.link_code }}</p>
@@ -162,7 +162,7 @@
         {% set is_current = loop.index0 == cur %}
         <div class="flex gap-3">
           <div class="flex flex-col items-center">
-            <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+            <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold {{ 'stage-pulse' if is_current else '' }}"
                  style="{% if is_current %}background: var(--brand); color: #fff; box-shadow: 0 0 0 4px var(--brand-tint-border);{% elif done %}background: var(--brand-tint-bg); color: var(--brand-text);{% else %}background: var(--border-soft); color: var(--text-faint2);{% endif %}">
               {{ loop.index if done else '' }}
             </div>

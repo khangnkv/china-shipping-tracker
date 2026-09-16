@@ -346,4 +346,54 @@
     }, { threshold: 0.15 });
     document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
   }
+
+  // ---- Trust-stat count-up (landing page) --------------------------------
+  // [data-count-to] already holds its real final value in the markup (so a
+  // no-JS visitor sees the correct number immediately, same as before this
+  // existed) -- JS only replaces that with an animated count-up once it's
+  // scrolled into view, then leaves the real value in place.
+  if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    var countEls = document.querySelectorAll("[data-count-to]");
+    if (countEls.length) {
+      var countIo = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          countIo.unobserve(entry.target);
+          var el = entry.target;
+          var target = parseInt(el.dataset.countTo, 10);
+          if (!target) return;
+          var start = performance.now();
+          var duration = 900;
+          function step(now) {
+            var progress = Math.min((now - start) / duration, 1);
+            var eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+            el.textContent = Math.round(target * eased);
+            if (progress < 1) requestAnimationFrame(step);
+            else el.textContent = target;
+          }
+          requestAnimationFrame(step);
+        });
+      }, { threshold: 0.5 });
+      countEls.forEach(function (el) { countIo.observe(el); });
+    }
+  }
+
+  // ---- Submit-button loading feedback -------------------------------------
+  // A form opts in with data-loading-text="Saving…" -- on submit, the
+  // button that actually triggered it disables and swaps to that label, so
+  // a slow connection doesn't read as "did my click even register?". Uses
+  // event.submitter (not form.querySelector) because at least one form
+  // here (order_detail's main form) nests a second submit button that's
+  // logically tied elsewhere via form="otherFormId" -- querySelector would
+  // match that one by DOM position regardless of which was really clicked.
+  // Every form here full-page navigates on both success and failure, so
+  // there's nothing to restore.
+  document.querySelectorAll("form[data-loading-text]").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      var btn = e.submitter;
+      if (!btn || btn.tagName !== "BUTTON" || btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = form.dataset.loadingText;
+    });
+  });
 })();

@@ -19,7 +19,7 @@
       <p class="mt-1 text-sm" style="color: var(--text-muted);">Sign in to manage your orders</p>
     </div>
 
-    <form method="post" class="card p-6 shadow-sm">
+    <form method="post" class="card p-6 shadow-sm" data-loading-text="Signing in…">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% with messages = get_flashed_messages() %}
         {% if messages %}
