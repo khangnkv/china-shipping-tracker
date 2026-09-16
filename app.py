@@ -77,7 +77,8 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "w
 THEME_COOKIE = "theme"
 VALID_THEMES = {"light", "dark", "auto"}
 LOCALE_COOKIE = "locale"
-VALID_LOCALES = {"en", "th"}
+VALID_LOCALES = {"en", "th", "vi", "zh", "my"}
+LOCALE_LABELS = {"en": "EN", "th": "ไทย", "vi": "Tiếng Việt", "zh": "中文", "my": "မြန်မာ"}
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365  # 1 year; cleared by the browser/user clearing cookies
 
 # Max long-edge (px) for the stored full image and the list/carousel thumbnail.
@@ -305,7 +306,15 @@ def init_db():
         "agency_id INTEGER", "china_tracking_no TEXT",
         "local_carrier TEXT", "local_tracking_no TEXT",
     ])
-    _add_columns(db, "customers", ["address TEXT", "phone_normalized TEXT"])
+    _add_columns(db, "customers", [
+        "address TEXT", "phone_normalized TEXT",
+        # v6: other_contact (LINE handle/email/FB) moved here from being
+        # request-only, so it's remembered across all of a customer's
+        # orders; info_source_note records the raw text + phone the last
+        # "paste customer info" auto-extraction produced, so an admin can
+        # review/correct it if the extraction got something wrong.
+        "other_contact TEXT", "info_source_note TEXT",
+    ])
     # Agency routes: from/to country (FK, or free-text when not in the list),
     # two-way flag, optional external link.
     _add_columns(db, "agencies", [
@@ -553,6 +562,8 @@ app.jinja_env.globals["order_profit"] = order_profit
 app.jinja_env.globals["CUSTOMER_STATUS"] = CUSTOMER_STATUS
 app.jinja_env.globals["CUSTOMER_STATUS_TH"] = CUSTOMER_STATUS_TH
 app.jinja_env.globals["LINE_CONTACT"] = LINE_CONTACT
+app.jinja_env.globals["LOCALE_LABELS"] = LOCALE_LABELS
+app.jinja_env.globals["VALID_LOCALES"] = VALID_LOCALES
 app.jinja_env.globals["STATUS_ORDER"] = STATUS_ORDER
 
 
@@ -620,143 +631,143 @@ def set_locale(lang):
 # that exist today; anything not in the table falls back to the English
 # literal already in the template.
 TRANSLATIONS = {
-    "landing.title": {"en": "Buy anything in China. We bring it to your door in Thailand.", "th": "ซื้อของจากจีนอะไรก็ได้ เราส่งถึงบ้านคุณในไทย"},
-    "landing.subtitle": {"en": "Tell us the item and your budget — we quote the real cost before you pay a baht, then track it all the way home.", "th": "บอกเราว่าอยากได้อะไรและงบเท่าไหร่ เราจะแจ้งราคาจริงก่อนที่คุณจะจ่ายเงิน แล้วติดตามพัสดุได้จนถึงบ้าน"},
-    "landing.cta": {"en": "Start your order", "th": "เริ่มสั่งซื้อ"},
-    "landing.cta_note": {"en": "Takes about 2 minutes — no account needed.", "th": "ใช้เวลาประมาณ 2 นาที ไม่ต้องสมัครสมาชิก"},
-    "landing.how_it_works": {"en": "How it works", "th": "ขั้นตอนการสั่งซื้อ"},
-    "landing.step1_title": {"en": "Describe your item & budget", "th": "บอกรายละเอียดสินค้าและงบประมาณ"},
-    "landing.step1_body": {"en": "Paste a product link or describe it, and tell us roughly what you want to spend.", "th": "วางลิงก์สินค้าหรืออธิบายสินค้า พร้อมบอกงบประมาณคร่าวๆ"},
-    "landing.step2_title": {"en": "We quote the real cost", "th": "เราแจ้งราคาจริง"},
-    "landing.step2_body": {"en": "Item price + shipping, checked against your budget — no hidden fees added later.", "th": "ราคาสินค้า + ค่าส่ง เทียบกับงบของคุณ ไม่มีค่าใช้จ่ายแอบแฝงภายหลัง"},
-    "landing.step3_title": {"en": "You confirm on LINE", "th": "ยืนยันผ่าน LINE"},
-    "landing.step3_body": {"en": "A real person messages you to confirm before anything ships.", "th": "มีเจ้าหน้าที่จริงทักมายืนยันก่อนจัดส่งทุกครั้ง"},
-    "landing.step4_title": {"en": "We ship & you track", "th": "จัดส่งและติดตามสถานะได้"},
-    "landing.step4_body": {"en": "Follow it from the China warehouse to your door, step by step.", "th": "ติดตามพัสดุตั้งแต่คลังจีนจนถึงหน้าบ้านคุณทีละขั้นตอน"},
-    "landing.trust_title": {"en": "Why customers trust SINEX", "th": "ทำไมลูกค้าไว้วางใจ SINEX"},
-    "landing.stat_shipments_label": {"en": "shipments delivered", "th": "รายการจัดส่งสำเร็จ"},
-    "landing.stat_since_label": {"en": "operating since", "th": "ดำเนินการตั้งแต่ปี"},
-    "landing.trust_line_title": {"en": "A real person answers on LINE", "th": "มีคนจริงตอบแชท LINE"},
-    "landing.trust_line_body": {"en": "Not a bot maze — message us any time you have a question.", "th": "ไม่ใช่บอทวนลูป ทักมาได้ทุกเมื่อที่มีคำถาม"},
-    "track.title": {"en": "Tracking code", "th": "รหัสติดตามพัสดุ"},
-    "track.recipient": {"en": "Recipient", "th": "ผู้รับ"},
-    "track.timeline": {"en": "Tracking timeline", "th": "ไทม์ไลน์การจัดส่ง"},
-    "track.current": {"en": "Current status", "th": "สถานะปัจจุบัน"},
-    "track.parcel_details": {"en": "Parcel details", "th": "รายละเอียดพัสดุ"},
-    "track.china_leg": {"en": "China → warehouse tracking", "th": "เลขติดตามจากจีน → คลังสินค้า"},
-    "track.contact_line": {"en": "Contact shop on LINE", "th": "ติดต่อร้านทาง LINE"},
-    "track.delivered": {"en": "Your parcel has been delivered!", "th": "พัสดุของคุณถึงมือแล้ว!"},
-    "track.not_found_title": {"en": "Order not found", "th": "ไม่พบคำสั่งซื้อ"},
-    "track.not_found_body": {"en": "Please check your tracking code and try again.", "th": "กรุณาตรวจสอบรหัสติดตามแล้วลองใหม่อีกครั้ง"},
-    "track.not_found_home": {"en": "Go to homepage", "th": "กลับหน้าแรก"},
-    "track.lookup_cta": {"en": "Track an existing order", "th": "ติดตามคำสั่งซื้อที่มีอยู่"},
-    "track.lookup_title": {"en": "Find your order", "th": "ค้นหาคำสั่งซื้อของคุณ"},
-    "track.lookup_subtitle": {"en": "Enter the phone number you used when ordering.", "th": "กรอกเบอร์โทรที่คุณใช้ตอนสั่งซื้อ"},
-    "track.lookup_phone_label": {"en": "Phone number", "th": "เบอร์โทรศัพท์"},
-    "track.lookup_submit": {"en": "Find my orders", "th": "ค้นหาคำสั่งซื้อของฉัน"},
-    "track.lookup_invalid_phone": {"en": "Please enter a valid phone number.", "th": "กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง"},
-    "track.lookup_no_match": {"en": "We couldn't find any orders with that phone number.", "th": "เราไม่พบคำสั่งซื้อที่ใช้เบอร์โทรนี้"},
-    "track.lookup_results_title": {"en": "Your orders", "th": "คำสั่งซื้อของคุณ"},
-    "track.eta_label": {"en": "Estimated delivery", "th": "วันจัดส่งโดยประมาณ"},
-    "track.eta_note": {"en": "Estimate only, not a guarantee.", "th": "เป็นเพียงการประมาณการ ไม่ใช่การรับประกัน"},
-    "track.qr_hint": {"en": "Save or share this code", "th": "บันทึกหรือแชร์รหัสนี้"},
-    "feedback.nav_cta": {"en": "Send feedback", "th": "ส่งความคิดเห็น"},
-    "feedback.title": {"en": "Send feedback", "th": "ส่งความคิดเห็น"},
-    "feedback.subtitle": {"en": "Tell us what's working, what isn't, or what you wish we had — every message gets read.", "th": "บอกเราว่าอะไรดี อะไรไม่ดี หรืออยากให้เรามีอะไรเพิ่ม — ทุกข้อความจะถูกอ่าน"},
-    "feedback.message_label": {"en": "Your feedback", "th": "ความคิดเห็นของคุณ"},
-    "feedback.name_label": {"en": "Name", "th": "ชื่อ"},
-    "feedback.contact_label": {"en": "Contact", "th": "ช่องทางติดต่อ"},
-    "feedback.contact_hint": {"en": "Phone or LINE, in case we'd like to follow up (optional).", "th": "เบอร์โทรหรือไลน์ เผื่อเราอยากติดต่อกลับ (ไม่บังคับ)"},
-    "feedback.submit": {"en": "Send feedback", "th": "ส่งความคิดเห็น"},
-    "feedback.error_required": {"en": "Please write your feedback before sending.", "th": "กรุณาเขียนความคิดเห็นก่อนส่ง"},
-    "feedback.thanks_title": {"en": "Thank you!", "th": "ขอบคุณ!"},
-    "feedback.thanks_body": {"en": "Your feedback helps us improve — we read every message.", "th": "ความคิดเห็นของคุณช่วยให้เราพัฒนาได้ดีขึ้น เราอ่านทุกข้อความ"},
-    "request.title": {"en": "Request an order", "th": "แจ้งความจำนงสั่งซื้อ"},
-    "request.title_submitted": {"en": "Your order request", "th": "คำขอสั่งซื้อของคุณ"},
-    "request.subtitle": {"en": "Tell us what you'd like to order and how to reach you — we'll take it from there.", "th": "บอกเราว่าอยากสั่งอะไรและติดต่อคุณได้ทางไหน ที่เหลือเราจัดการเอง"},
-    "request.name": {"en": "Your name", "th": "ชื่อของคุณ"},
-    "request.phone": {"en": "Phone number", "th": "เบอร์โทรศัพท์"},
-    "request.address": {"en": "Delivery address", "th": "ที่อยู่จัดส่ง"},
-    "request.address_optional": {"en": "(optional for now)", "th": "(ยังไม่จำเป็นตอนนี้)"},
-    "request.item": {"en": "What would you like to order?", "th": "อยากสั่งอะไร?"},
-    "request.link": {"en": "Product link", "th": "ลิงก์สินค้า"},
-    "request.optional": {"en": "(optional)", "th": "(ไม่บังคับ)"},
-    "request.budget": {"en": "Your budget (for the item itself — shipping is separate)", "th": "งบประมาณของคุณ (ค่าสินค้าเท่านั้น ไม่รวมค่าส่ง)"},
-    "request.budget_placeholder": {"en": "e.g. around ฿2,000 — flexible", "th": "เช่น ประมาณ ๒,๐๐๐ บาท ยืดหยุ่นได้"},
-    "request.budget_hint": {"en": "This is what you're willing to pay for the item itself. Shipping is calculated separately once your item arrives at our warehouse.", "th": "นี่คืองบที่คุณยินดีจ่ายสำหรับตัวสินค้าเท่านั้น ค่าส่งจะคำนวณแยกหลังจากสินค้าถึงคลังของเรา"},
-    "request.delivery_estimates_title": {"en": "Delivery time estimates", "th": "ระยะเวลาจัดส่งโดยประมาณ"},
-    "request.delivery_road": {"en": "Road (truck): 7–14 days", "th": "ทางรถ: 7–14 วัน"},
-    "request.delivery_boat": {"en": "Boat (ship): 10–30 days", "th": "ทางเรือ: 10–30 วัน"},
-    "request.delivery_estimates_note": {"en": "Estimates only, not a guarantee — see our shipping terms.", "th": "เป็นเพียงการประมาณการ ไม่ใช่การรับประกัน — โปรดดูข้อกำหนดการจัดส่งของเรา"},
-    "request.reference_image": {"en": "Reference photo", "th": "รูปภาพอ้างอิง"},
-    "request.reference_image_hint": {"en": "A screenshot or photo of the item helps us find exactly what you mean.", "th": "ภาพหน้าจอหรือรูปสินค้าจะช่วยให้เราหาสินค้าที่คุณต้องการได้ตรงขึ้น"},
-    "request.agree_terms_prefix": {"en": "I have read and agree to the", "th": "ฉันได้อ่านและยอมรับ"},
-    "request.agree_terms_link": {"en": "Shipping Terms & Liability Disclaimer", "th": "ข้อกำหนดการจัดส่งและข้อจำกัดความรับผิดชอบ"},
-    "request.agree_terms_required": {"en": "Please confirm you've read and agree to the shipping terms before submitting.", "th": "กรุณายืนยันว่าคุณได้อ่านและยอมรับข้อกำหนดการจัดส่งก่อนส่งคำขอ"},
-    "request.other_contact": {"en": "Other contact", "th": "ช่องทางติดต่ออื่น"},
-    "request.other_contact_placeholder": {"en": "LINE: @user, email, or a Facebook link", "th": "LINE: @user, อีเมล หรือลิงก์ Facebook"},
-    "request.other_contact_hint": {"en": "In case we need to reach you a different way about pricing.", "th": "เผื่อเราต้องติดต่อคุณช่องทางอื่นเรื่องราคา"},
-    "request.submit": {"en": "Submit request", "th": "ส่งคำขอ"},
-    "request.save": {"en": "Save changes", "th": "บันทึกการแก้ไข"},
-    "request.line_cta": {"en": "Message us on LINE", "th": "ทักแชท LINE"},
-    "request.line_hint": {"en": "Send your phone number on LINE so we can text you the moment your quote is ready — no extra code needed.", "th": "ส่งเบอร์โทรของคุณทาง LINE เพื่อให้เราแจ้งเตือนทันทีที่ใบเสนอราคาของคุณพร้อม ไม่ต้องใช้รหัสเพิ่ม"},
-    "request.bookmark": {"en": "Bookmark this page to check back", "th": "บันทึกหน้านี้ไว้เพื่อกลับมาดูภายหลัง"},
-    "request.quote_title": {"en": "Your quote", "th": "ใบเสนอราคาของคุณ"},
-    "request.quote_item": {"en": "Item cost", "th": "ค่าสินค้า"},
-    "request.quote_shipping": {"en": "Shipping", "th": "ค่าส่ง"},
-    "request.quote_shipping_note": {"en": "Calculated once your item arrives at our warehouse — not included in the budget you gave us.", "th": "คำนวณหลังจากสินค้าถึงคลังของเรา ไม่รวมอยู่ในงบที่คุณแจ้งไว้"},
-    "request.quote_total": {"en": "Total", "th": "ยอดรวม"},
-    "request.quote_budget": {"en": "Your item budget", "th": "งบค่าสินค้าของคุณ"},
-    "request.quote_hint": {"en": "We'll message you on LINE to confirm before shipping.", "th": "เราจะทักไลน์เพื่อยืนยันก่อนจัดส่ง"},
-    "request.quote_within": {"en": "Item within budget", "th": "ค่าสินค้าอยู่ในงบ"},
-    "request.quote_over": {"en": "Item over budget", "th": "ค่าสินค้าเกินงบ"},
-    "request.quote_awaiting": {"en": "Awaiting quote", "th": "รอแจ้งราคา"},
-    "request.not_found_title": {"en": "Request not found", "th": "ไม่พบคำขอ"},
-    "request.not_found_body": {"en": "Please check your link and try again.", "th": "กรุณาตรวจสอบลิงก์แล้วลองใหม่อีกครั้ง"},
-    "request.not_found_cta": {"en": "Submit a new request", "th": "ส่งคำขอใหม่"},
-    "request.error_required": {"en": "This is required.", "th": "กรุณากรอกข้อมูลนี้"},
-    "request.error_summary": {"en": "Please fix the highlighted fields below.", "th": "กรุณาแก้ไขช่องที่ไฮไลต์ไว้ด้านล่าง"},
-    "request.error_reattach_photo": {"en": "Please reattach your reference photo — it wasn't saved because of the error above.", "th": "กรุณาแนบรูปภาพอ้างอิงอีกครั้ง — รูปเดิมไม่ถูกบันทึกไว้เนื่องจากข้อผิดพลาดด้านบน"},
-    "request.wizard_next": {"en": "Next", "th": "ถัดไป"},
-    "request.wizard_back": {"en": "Back", "th": "ย้อนกลับ"},
-    "terms.title": {"en": "Shipping Terms & Liability Disclaimer", "th": "ข้อกำหนดการจัดส่งและข้อจำกัดความรับผิดชอบ"},
-    "terms.updated_label": {"en": "Last updated", "th": "อัปเดตล่าสุด"},
-    "terms.intro": {"en": "Please read this before submitting a request. By checking the agreement box on the request form, you confirm you understand and accept these terms.", "th": "กรุณาอ่านก่อนส่งคำขอ การติ๊กยอมรับในแบบฟอร์มถือว่าคุณเข้าใจและยอมรับข้อกำหนดเหล่านี้"},
-    "terms.summary_title": {"en": "The short version", "th": "สรุปแบบสั้นๆ"},
-    "terms.summary_1": {"en": "We buy and ship on your behalf — we're not the manufacturer or the store.", "th": "เราซื้อและจัดส่งแทนคุณ เราไม่ใช่ผู้ผลิตหรือร้านค้า"},
-    "terms.summary_2": {"en": "Your budget covers the item only; shipping is priced separately once it reaches our warehouse.", "th": "งบของคุณครอบคลุมแค่ค่าสินค้า ส่วนค่าส่งจะคิดแยกหลังของถึงคลัง"},
-    "terms.summary_3": {"en": "Road takes 7–14 days, boat 10–30 days — real-world estimates, not promises.", "th": "ทางรถ 7–14 วัน ทางเรือ 10–30 วัน เป็นการประมาณการตามจริง ไม่ใช่คำสัญญา"},
-    "terms.summary_4": {"en": "Item quality or damage disputes go to the original seller, not us.", "th": "ปัญหาคุณภาพหรือความเสียหายของสินค้าต้องติดต่อผู้ขายต้นทาง ไม่ใช่เรา"},
-    "terms.role_title": {"en": "SINEX is a forwarding agent, not the seller", "th": "SINEX เป็นตัวแทนรับส่งพัสดุ ไม่ใช่ผู้ขาย"},
-    "terms.role_body": {"en": "We purchase and/or forward items on your behalf from third-party sellers in China. We are an intermediary — we do not manufacture, own, or guarantee the items themselves.", "th": "เราซื้อและ/หรือส่งต่อสินค้าให้คุณจากผู้ขายบุคคลที่สามในประเทศจีน เราเป็นตัวกลาง ไม่ได้เป็นผู้ผลิต เจ้าของ หรือผู้รับประกันตัวสินค้า"},
-    "terms.liability_title": {"en": "No liability for item condition, damage, or quality", "th": "ไม่รับผิดชอบต่อสภาพ ความเสียหาย หรือคุณภาพของสินค้า"},
-    "terms.liability_body": {"en": "Disputes about an item's quality, authenticity, or damage from manufacturing are between you and the original seller — not SINEX. We take reasonable care in handling, but we do not refund or compensate for item defects or damage that occurred before or during the seller's own shipping to our warehouse.", "th": "ข้อพิพาทเกี่ยวกับคุณภาพ ความแท้ หรือความเสียหายจากการผลิตของสินค้า เป็นเรื่องระหว่างคุณกับผู้ขายต้นทาง ไม่ใช่ SINEX เราดูแลสินค้าด้วยความระมัดระวังตามสมควร แต่จะไม่คืนเงินหรือชดเชยความเสียหายที่เกิดขึ้นก่อนหรือระหว่างการจัดส่งของผู้ขายมายังคลังของเรา"},
-    "terms.delay_title": {"en": "Delivery estimates are not guarantees", "th": "ระยะเวลาจัดส่งเป็นเพียงการประมาณการ ไม่ใช่การรับประกัน"},
-    "terms.delay_body": {"en": "Typical delivery times are road (truck): 7–14 days, boat (ship): 10–30 days, counted from when your item leaves the China warehouse. These are estimates based on normal conditions — customs, weather, holidays, and carrier delays can extend them. A delay past these estimates is not, on its own, grounds for a refund or compensation from SINEX.", "th": "ระยะเวลาจัดส่งโดยทั่วไป ทางรถ 7–14 วัน ทางเรือ 10–30 วัน นับจากสินค้าออกจากคลังจีน เป็นเพียงการประมาณการภายใต้สภาวะปกติ ศุลกากร สภาพอากาศ วันหยุด และความล่าช้าของผู้ขนส่งอาจทำให้ใช้เวลานานกว่านี้ ความล่าช้าเกินกว่าที่ประมาณการไว้เพียงอย่างเดียว ไม่ถือเป็นเหตุให้ต้องคืนเงินหรือชดเชยจาก SINEX"},
-    "terms.pricing_title": {"en": "Budget & pricing", "th": "งบประมาณและราคา"},
-    "terms.pricing_body": {"en": "The budget you give us on the request form covers the item's purchase price only. Shipping cost is calculated separately once your item is received and measured/weighed at our warehouse, and is not included in that budget figure.", "th": "งบประมาณที่คุณแจ้งในแบบฟอร์มครอบคลุมเฉพาะราคาสินค้าเท่านั้น ค่าจัดส่งจะคำนวณแยกต่างหากหลังจากสินค้าถึงคลังและมีการชั่ง/วัดขนาดแล้ว ไม่รวมอยู่ในตัวเลขงบประมาณดังกล่าว"},
-    "terms.payment_title": {"en": "Payment", "th": "การชำระเงิน"},
-    "terms.payment_body": {"en": "Payment is arranged directly with us over LINE (in Thai baht) once your quote is confirmed — this website does not collect any card or bank details.", "th": "การชำระเงินจะตกลงกันโดยตรงทาง LINE (เป็นเงินบาท) หลังยืนยันราคาแล้ว เว็บไซต์นี้ไม่มีการเก็บข้อมูลบัตรหรือบัญชีธนาคารใดๆ"},
-    "terms.cancel_title": {"en": "Cancellation & refusal", "th": "การยกเลิกและการปฏิเสธคำขอ"},
-    "terms.cancel_body": {"en": "We may decline to fulfil a request (e.g. a restricted or unavailable item) before purchase without penalty to either side. Once we've paid the seller on your behalf, that payment is generally non-refundable by SINEX, consistent with the seller's own terms.", "th": "เราอาจปฏิเสธคำขอได้ (เช่น สินค้าต้องห้ามหรือไม่มีจำหน่าย) ก่อนการซื้อ โดยไม่มีผลเสียต่อทั้งสองฝ่าย เมื่อเราชำระเงินให้ผู้ขายแทนคุณแล้ว การชำระเงินนั้นโดยทั่วไปจะไม่สามารถขอคืนจาก SINEX ได้ ตามเงื่อนไขของผู้ขายเอง"},
-    "terms.privacy_title": {"en": "Your information", "th": "ข้อมูลของคุณ"},
-    "terms.privacy_body": {"en": "We collect your name, phone number, address, and (optionally) a reference photo solely to process your request and communicate with you over LINE. We don't sell or share it with third parties beyond what's needed to ship your item.", "th": "เราเก็บชื่อ เบอร์โทร ที่อยู่ และรูปภาพอ้างอิง (ถ้ามี) เพื่อดำเนินการตามคำขอและติดต่อคุณทาง LINE เท่านั้น เราไม่ขายหรือแชร์ข้อมูลของคุณกับบุคคลที่สาม เว้นแต่จำเป็นต่อการจัดส่งสินค้า"},
-    "terms.law_title": {"en": "Governing terms", "th": "กฎหมายที่ใช้บังคับ"},
-    "terms.law_body": {"en": "These terms are intended to be interpreted under the laws of Thailand. If any part is found unenforceable, the rest still stands.", "th": "ข้อกำหนดนี้มีเจตนาให้ตีความตามกฎหมายไทย หากข้อใดไม่สามารถบังคับใช้ได้ ข้อกำหนดส่วนที่เหลือยังมีผลบังคับใช้ต่อไป"},
-    "terms.contact_title": {"en": "Questions", "th": "หากมีคำถาม"},
-    "terms.contact_body": {"en": "Message us on LINE any time before confirming an order if anything here is unclear.", "th": "ทักแชท LINE หาเราได้ทุกเมื่อก่อนยืนยันคำสั่งซื้อ หากมีข้อสงสัย"},
-    "terms.back": {"en": "Back to request form", "th": "กลับไปหน้าแจ้งความจำนงสั่งซื้อ"},
-    "request.step_details": {"en": "Your details", "th": "ข้อมูลของคุณ"},
-    "request.step_photo": {"en": "Photo", "th": "รูปภาพ"},
-    "request.step_budget": {"en": "Budget", "th": "งบประมาณ"},
-    "request.dropzone_hint": {"en": "Drag a photo here, or click to browse", "th": "ลากรูปมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์"},
-    "error.413_title": {"en": "That file is too large", "th": "ไฟล์มีขนาดใหญ่เกินไป"},
-    "error.413_body": {"en": "Photos must be under 5 MB. Please go back and choose a smaller image.", "th": "รูปภาพต้องมีขนาดไม่เกิน 5 MB กรุณาย้อนกลับแล้วเลือกไฟล์ที่เล็กลง"},
-    "error.csrf_title": {"en": "That page had expired", "th": "หน้านี้หมดอายุแล้ว"},
-    "error.csrf_body": {"en": "Your session timed out or the form was submitted twice. Please go back and try again.", "th": "เซสชันของคุณหมดอายุ หรือมีการส่งฟอร์มซ้ำ กรุณาย้อนกลับแล้วลองใหม่อีกครั้ง"},
-    "error.500_title": {"en": "Something went wrong on our end", "th": "เกิดข้อผิดพลาดจากทางเรา"},
-    "error.500_body": {"en": "Please try again in a moment. If it keeps happening, message us on LINE and we'll sort it out.", "th": "กรุณาลองใหม่อีกครั้งในอีกสักครู่ หากยังพบปัญหาอยู่ ทักแชท LINE หาเราได้เลย"},
-    "error.go_back": {"en": "Go back", "th": "ย้อนกลับ"},
+    "landing.title": {"en": "Buy anything in China. We bring it to your door in Thailand.", "th": "ซื้อของจากจีนอะไรก็ได้ เราส่งถึงบ้านคุณในไทย", "vi": "Mua bất cứ thứ gì ở Trung Quốc. Chúng tôi giao tận cửa nhà bạn ở Thái Lan.", "zh": "在中国购买任何商品，我们直接送到您在泰国的家门口。", "my": "တရုတ်ပြည်မှာ ဘာမဆိုဝယ်ပါ။ ထိုင်းနိုင်ငံရှိ သင့်အိမ်တံခါးဝအထိ ကျွန်ုပ်တို့ ပို့ဆောင်ပေးပါမည်။"},
+    "landing.subtitle": {"en": "Tell us the item and your budget — we quote the real cost before you pay a baht, then track it all the way home.", "th": "บอกเราว่าอยากได้อะไรและงบเท่าไหร่ เราจะแจ้งราคาจริงก่อนที่คุณจะจ่ายเงิน แล้วติดตามพัสดุได้จนถึงบ้าน", "vi": "Cho chúng tôi biết sản phẩm và ngân sách của bạn — chúng tôi báo giá thực trước khi bạn trả bất kỳ khoản nào, sau đó theo dõi đơn hàng đến tận nhà.", "zh": "告诉我们商品和您的预算——在您付款之前我们会提供真实报价，然后全程为您追踪包裹直到送达。", "my": "ပစ္စည်းနှင့် ဘတ်ဂျက်ကို ပြောပြပါ — ငွေမပေးချေမီ အမှန်တကယ်ကုန်ကျစရိတ်ကို ကျွန်ုပ်တို့ ခန့်မှန်းပေးပြီး၊ အိမ်အထိ ရောက်သည်အထိ ခြေရာခံပေးပါမည်။"},
+    "landing.cta": {"en": "Start your order", "th": "เริ่มสั่งซื้อ", "vi": "Bắt đầu đặt hàng", "zh": "开始下单", "my": "အော်ဒါစတင်မည်"},
+    "landing.cta_note": {"en": "Takes about 2 minutes — no account needed.", "th": "ใช้เวลาประมาณ 2 นาที ไม่ต้องสมัครสมาชิก", "vi": "Chỉ mất khoảng 2 phút — không cần tạo tài khoản.", "zh": "只需约2分钟，无需注册账户。", "my": "မိနစ် ၂ မိနစ်ခန့်သာကြာပါသည် — အကောင့်မလိုအပ်ပါ။"},
+    "landing.how_it_works": {"en": "How it works", "th": "ขั้นตอนการสั่งซื้อ", "vi": "Cách thức hoạt động", "zh": "使用流程", "my": "အလုပ်လုပ်ပုံ"},
+    "landing.step1_title": {"en": "Describe your item & budget", "th": "บอกรายละเอียดสินค้าและงบประมาณ", "vi": "Mô tả sản phẩm & ngân sách", "zh": "描述商品和预算", "my": "ပစ္စည်းနှင့် ဘတ်ဂျက်ကို ဖော်ပြပါ"},
+    "landing.step1_body": {"en": "Paste a product link or describe it, and tell us roughly what you want to spend.", "th": "วางลิงก์สินค้าหรืออธิบายสินค้า พร้อมบอกงบประมาณคร่าวๆ", "vi": "Dán liên kết sản phẩm hoặc mô tả nó, và cho chúng tôi biết khoảng ngân sách bạn muốn chi.", "zh": "粘贴商品链接或描述商品，并告诉我们大致预算。", "my": "ပစ္စည်းလင့်ခ်ကို ကူးထည့်ပါ သို့မဟုတ် ဖော်ပြပါ၊ ကုန်ကျလိုသော ခန့်မှန်းငွေကိုပါ ပြောပြပါ။"},
+    "landing.step2_title": {"en": "We quote the real cost", "th": "เราแจ้งราคาจริง", "vi": "Chúng tôi báo giá thực", "zh": "我们提供真实报价", "my": "အမှန်တကယ်ကုန်ကျစရိတ်ကို ခန့်မှန်းပေးမည်"},
+    "landing.step2_body": {"en": "Item price + shipping, checked against your budget — no hidden fees added later.", "th": "ราคาสินค้า + ค่าส่ง เทียบกับงบของคุณ ไม่มีค่าใช้จ่ายแอบแฝงภายหลัง", "vi": "Giá sản phẩm + phí vận chuyển, đối chiếu với ngân sách của bạn — không phát sinh phí ẩn sau này.", "zh": "商品价格+运费，与您的预算核对——之后不会有隐藏费用。", "my": "ပစ္စည်းဈေးနှုန်း + ပို့ဆောင်ခ၊ သင့်ဘတ်ဂျက်နှင့်နှိုင်းယှဉ်ပြီး — နောက်ပိုင်း ဝှက်ထားသောကုန်ကျစရိတ်များ မရှိပါ။"},
+    "landing.step3_title": {"en": "You confirm on LINE", "th": "ยืนยันผ่าน LINE", "vi": "Bạn xác nhận qua LINE", "zh": "您在LINE上确认", "my": "LINE မှာ အတည်ပြုပါ"},
+    "landing.step3_body": {"en": "A real person messages you to confirm before anything ships.", "th": "มีเจ้าหน้าที่จริงทักมายืนยันก่อนจัดส่งทุกครั้ง", "vi": "Một nhân viên thật sẽ nhắn tin xác nhận với bạn trước khi giao hàng.", "zh": "在发货前，真人客服会与您联系确认。", "my": "ပစ္စည်းမပို့ခင် လူတကယ်က သင့်ကို မက်ဆေ့ချ်ပို့ပြီး အတည်ပြုပါမည်။"},
+    "landing.step4_title": {"en": "We ship & you track", "th": "จัดส่งและติดตามสถานะได้", "vi": "Chúng tôi giao hàng & bạn theo dõi", "zh": "我们发货，您追踪", "my": "ကျွန်ုပ်တို့ပို့ဆောင်ပြီး သင်ခြေရာခံနိုင်ပါသည်"},
+    "landing.step4_body": {"en": "Follow it from the China warehouse to your door, step by step.", "th": "ติดตามพัสดุตั้งแต่คลังจีนจนถึงหน้าบ้านคุณทีละขั้นตอน", "vi": "Theo dõi từ kho hàng Trung Quốc đến tận cửa nhà bạn, từng bước một.", "zh": "从中国仓库到您家门口，全程逐步追踪。", "my": "တရုတ်ကုန်လှောင်ရုံမှ သင့်အိမ်တံခါးဝအထိ အဆင့်ဆင့် ခြေရာခံနိုင်ပါသည်။"},
+    "landing.trust_title": {"en": "Why customers trust SINEX", "th": "ทำไมลูกค้าไว้วางใจ SINEX", "vi": "Vì sao khách hàng tin tưởng SINEX", "zh": "为什么客户信赖SINEX", "my": "SINEX ကို ဖောက်သည်များ ဘာကြောင့်ယုံကြည်သနည်း"},
+    "landing.stat_shipments_label": {"en": "shipments delivered", "th": "รายการจัดส่งสำเร็จ", "vi": "đơn hàng đã giao", "zh": "已完成配送", "my": "ပို့ဆောင်ပြီးသည့် ပစ္စည်းများ"},
+    "landing.stat_since_label": {"en": "operating since", "th": "ดำเนินการตั้งแต่ปี", "vi": "hoạt động từ", "zh": "运营开始于", "my": "စတင်လည်ပတ်သည့်နှစ်"},
+    "landing.trust_line_title": {"en": "A real person answers on LINE", "th": "มีคนจริงตอบแชท LINE", "vi": "Nhân viên thật trả lời trên LINE", "zh": "LINE上由真人回复", "my": "LINE မှာ လူတကယ်ဖြေကြားပေးပါသည်"},
+    "landing.trust_line_body": {"en": "Not a bot maze — message us any time you have a question.", "th": "ไม่ใช่บอทวนลูป ทักมาได้ทุกเมื่อที่มีคำถาม", "vi": "Không phải mê cung chatbot — nhắn tin cho chúng tôi bất cứ khi nào bạn có câu hỏi.", "zh": "不是机器人迷宫——有任何问题随时给我们发消息。", "my": "ဘော့ချက်ဝိုင်းထဲ လမ်းမပျောက်ပါနှင့် — မေးခွန်းရှိတိုင်း မည်သည့်အချိန်မဆို မက်ဆေ့ချ်ပို့နိုင်ပါသည်။"},
+    "track.title": {"en": "Tracking code", "th": "รหัสติดตามพัสดุ", "vi": "Mã theo dõi", "zh": "追踪码", "my": "ခြေရာခံကုဒ်"},
+    "track.recipient": {"en": "Recipient", "th": "ผู้รับ", "vi": "Người nhận", "zh": "收件人", "my": "လက်ခံသူ"},
+    "track.timeline": {"en": "Tracking timeline", "th": "ไทม์ไลน์การจัดส่ง", "vi": "Dòng thời gian vận chuyển", "zh": "物流时间线", "my": "ခြေရာခံအချိန်ဇယား"},
+    "track.current": {"en": "Current status", "th": "สถานะปัจจุบัน", "vi": "Trạng thái hiện tại", "zh": "当前状态", "my": "လက်ရှိအခြေအနေ"},
+    "track.parcel_details": {"en": "Parcel details", "th": "รายละเอียดพัสดุ", "vi": "Chi tiết kiện hàng", "zh": "包裹详情", "my": "ပါဆယ်အသေးစိတ်"},
+    "track.china_leg": {"en": "China → warehouse tracking", "th": "เลขติดตามจากจีน → คลังสินค้า", "vi": "Theo dõi Trung Quốc → kho hàng", "zh": "中国→仓库追踪", "my": "တရုတ် → ကုန်လှောင်ရုံ ခြေရာခံမှု"},
+    "track.contact_line": {"en": "Contact shop on LINE", "th": "ติดต่อร้านทาง LINE", "vi": "Liên hệ cửa hàng qua LINE", "zh": "通过LINE联系店铺", "my": "LINE မှတစ်ဆင့် ဆိုင်ကိုဆက်သွယ်ပါ"},
+    "track.delivered": {"en": "Your parcel has been delivered!", "th": "พัสดุของคุณถึงมือแล้ว!", "vi": "Kiện hàng của bạn đã được giao!", "zh": "您的包裹已送达！", "my": "သင့်ပါဆယ် ရောက်ရှိပြီးပါပြီ!"},
+    "track.not_found_title": {"en": "Order not found", "th": "ไม่พบคำสั่งซื้อ", "vi": "Không tìm thấy đơn hàng", "zh": "未找到订单", "my": "အော်ဒါမတွေ့ပါ"},
+    "track.not_found_body": {"en": "Please check your tracking code and try again.", "th": "กรุณาตรวจสอบรหัสติดตามแล้วลองใหม่อีกครั้ง", "vi": "Vui lòng kiểm tra mã theo dõi và thử lại.", "zh": "请检查您的追踪码后重试。", "my": "ခြေရာခံကုဒ်ကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပါ။"},
+    "track.not_found_home": {"en": "Go to homepage", "th": "กลับหน้าแรก", "vi": "Về trang chủ", "zh": "返回首页", "my": "ပင်မစာမျက်နှာသို့ သွားမည်"},
+    "track.lookup_cta": {"en": "Track an existing order", "th": "ติดตามคำสั่งซื้อที่มีอยู่", "vi": "Theo dõi đơn hàng hiện có", "zh": "追踪已有订单", "my": "လက်ရှိအော်ဒါကို ခြေရာခံမည်"},
+    "track.lookup_title": {"en": "Find your order", "th": "ค้นหาคำสั่งซื้อของคุณ", "vi": "Tìm đơn hàng của bạn", "zh": "查找您的订单", "my": "သင့်အော်ဒါကို ရှာပါ"},
+    "track.lookup_subtitle": {"en": "Enter the phone number you used when ordering.", "th": "กรอกเบอร์โทรที่คุณใช้ตอนสั่งซื้อ", "vi": "Nhập số điện thoại bạn đã dùng khi đặt hàng.", "zh": "请输入您下单时使用的电话号码。", "my": "အော်ဒါတင်စဉ်က သုံးခဲ့သည့် ဖုန်းနံပါတ်ကို ထည့်ပါ။"},
+    "track.lookup_phone_label": {"en": "Phone number", "th": "เบอร์โทรศัพท์", "vi": "Số điện thoại", "zh": "电话号码", "my": "ဖုန်းနံပါတ်"},
+    "track.lookup_submit": {"en": "Find my orders", "th": "ค้นหาคำสั่งซื้อของฉัน", "vi": "Tìm đơn hàng của tôi", "zh": "查找我的订单", "my": "ကျွန်ုပ်၏အော်ဒါများကို ရှာမည်"},
+    "track.lookup_invalid_phone": {"en": "Please enter a valid phone number.", "th": "กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง", "vi": "Vui lòng nhập số điện thoại hợp lệ.", "zh": "请输入有效的电话号码。", "my": "မှန်ကန်သော ဖုန်းနံပါတ်ကို ထည့်ပါ။"},
+    "track.lookup_no_match": {"en": "We couldn't find any orders with that phone number.", "th": "เราไม่พบคำสั่งซื้อที่ใช้เบอร์โทรนี้", "vi": "Chúng tôi không tìm thấy đơn hàng nào với số điện thoại đó.", "zh": "未找到使用该电话号码的任何订单。", "my": "ထိုဖုန်းနံပါတ်နှင့် အော်ဒါများ မတွေ့ပါ။"},
+    "track.lookup_results_title": {"en": "Your orders", "th": "คำสั่งซื้อของคุณ", "vi": "Đơn hàng của bạn", "zh": "您的订单", "my": "သင့်အော်ဒါများ"},
+    "track.eta_label": {"en": "Estimated delivery", "th": "วันจัดส่งโดยประมาณ", "vi": "Dự kiến giao hàng", "zh": "预计送达", "my": "ခန့်မှန်းပို့ဆောင်ချိန်"},
+    "track.eta_note": {"en": "Estimate only, not a guarantee.", "th": "เป็นเพียงการประมาณการ ไม่ใช่การรับประกัน", "vi": "Chỉ là ước tính, không phải cam kết.", "zh": "仅供参考，非承诺时间。", "my": "ခန့်မှန်းချက်သာဖြစ်ပြီး အာမခံချက်မဟုတ်ပါ။"},
+    "track.qr_hint": {"en": "Save or share this code", "th": "บันทึกหรือแชร์รหัสนี้", "vi": "Lưu hoặc chia sẻ mã này", "zh": "保存或分享此二维码", "my": "ဤကုဒ်ကို သိမ်းထားပါ သို့မဟုတ် မျှဝေပါ"},
+    "feedback.nav_cta": {"en": "Send feedback", "th": "ส่งความคิดเห็น", "vi": "Gửi phản hồi", "zh": "发送反馈", "my": "အကြံပြုချက်ပေးပို့ပါ"},
+    "feedback.title": {"en": "Send feedback", "th": "ส่งความคิดเห็น", "vi": "Gửi phản hồi", "zh": "发送反馈", "my": "အကြံပြုချက်ပေးပို့ပါ"},
+    "feedback.subtitle": {"en": "Tell us what's working, what isn't, or what you wish we had — every message gets read.", "th": "บอกเราว่าอะไรดี อะไรไม่ดี หรืออยากให้เรามีอะไรเพิ่ม — ทุกข้อความจะถูกอ่าน", "vi": "Cho chúng tôi biết điều gì đang tốt, điều gì chưa tốt, hoặc điều bạn mong muốn — mọi tin nhắn đều được đọc.", "zh": "告诉我们哪些做得好、哪些不好，或您希望我们提供什么——每条消息我们都会阅读。", "my": "ဘာကောင်းလဲ၊ ဘာမကောင်းလဲ၊ ဘာရှိစေချင်လဲ ပြောပြပါ — မက်ဆေ့ချ်တိုင်းကို ဖတ်ရှုပါသည်။"},
+    "feedback.message_label": {"en": "Your feedback", "th": "ความคิดเห็นของคุณ", "vi": "Phản hồi của bạn", "zh": "您的反馈", "my": "သင့်အကြံပြုချက်"},
+    "feedback.name_label": {"en": "Name", "th": "ชื่อ", "vi": "Tên", "zh": "姓名", "my": "အမည်"},
+    "feedback.contact_label": {"en": "Contact", "th": "ช่องทางติดต่อ", "vi": "Liên hệ", "zh": "联系方式", "my": "ဆက်သွယ်ရန်"},
+    "feedback.contact_hint": {"en": "Phone or LINE, in case we'd like to follow up (optional).", "th": "เบอร์โทรหรือไลน์ เผื่อเราอยากติดต่อกลับ (ไม่บังคับ)", "vi": "Số điện thoại hoặc LINE, phòng khi chúng tôi muốn liên hệ lại (không bắt buộc).", "zh": "电话或LINE，以便我们跟进（可选）。", "my": "ဖုန်း သို့မဟုတ် LINE၊ နောက်ဆက်တွဲမေးလိုပါက (မဖြစ်မနေမလိုအပ်)။"},
+    "feedback.submit": {"en": "Send feedback", "th": "ส่งความคิดเห็น", "vi": "Gửi phản hồi", "zh": "发送反馈", "my": "အကြံပြုချက်ပေးပို့ပါ"},
+    "feedback.error_required": {"en": "Please write your feedback before sending.", "th": "กรุณาเขียนความคิดเห็นก่อนส่ง", "vi": "Vui lòng viết phản hồi trước khi gửi.", "zh": "发送前请填写您的反馈内容。", "my": "မပို့မီ သင့်အကြံပြုချက်ကို ရေးပါ။"},
+    "feedback.thanks_title": {"en": "Thank you!", "th": "ขอบคุณ!", "vi": "Cảm ơn bạn!", "zh": "谢谢！", "my": "ကျေးဇူးတင်ပါသည်!"},
+    "feedback.thanks_body": {"en": "Your feedback helps us improve — we read every message.", "th": "ความคิดเห็นของคุณช่วยให้เราพัฒนาได้ดีขึ้น เราอ่านทุกข้อความ", "vi": "Phản hồi của bạn giúp chúng tôi cải thiện — chúng tôi đọc mọi tin nhắn.", "zh": "您的反馈帮助我们不断改进——我们会阅读每一条消息。", "my": "သင့်အကြံပြုချက်သည် တိုးတက်အောင် ကူညီပေးပါသည် — မက်ဆေ့ချ်တိုင်းကို ဖတ်ပါသည်။"},
+    "request.title": {"en": "Request an order", "th": "แจ้งความจำนงสั่งซื้อ", "vi": "Yêu cầu đặt hàng", "zh": "提交订购请求", "my": "အော်ဒါတောင်းဆိုမည်"},
+    "request.title_submitted": {"en": "Your order request", "th": "คำขอสั่งซื้อของคุณ", "vi": "Yêu cầu đặt hàng của bạn", "zh": "您的订购请求", "my": "သင့်အော်ဒါတောင်းဆိုမှု"},
+    "request.subtitle": {"en": "Tell us what you'd like to order and how to reach you — we'll take it from there.", "th": "บอกเราว่าอยากสั่งอะไรและติดต่อคุณได้ทางไหน ที่เหลือเราจัดการเอง", "vi": "Cho chúng tôi biết bạn muốn đặt gì và cách liên hệ với bạn — chúng tôi sẽ xử lý phần còn lại.", "zh": "告诉我们您想订购什么以及如何联系您——接下来交给我们处理。", "my": "ဘာမှာချင်လဲ၊ ဘယ်လိုဆက်သွယ်ရမလဲ ပြောပြပါ — ကျန်တာကို ကျွန်ုပ်တို့ ဆောင်ရွက်ပေးပါမည်။"},
+    "request.name": {"en": "Your name", "th": "ชื่อของคุณ", "vi": "Tên của bạn", "zh": "您的姓名", "my": "သင့်အမည်"},
+    "request.phone": {"en": "Phone number", "th": "เบอร์โทรศัพท์", "vi": "Số điện thoại", "zh": "电话号码", "my": "ဖုန်းနံပါတ်"},
+    "request.address": {"en": "Delivery address", "th": "ที่อยู่จัดส่ง", "vi": "Địa chỉ giao hàng", "zh": "收货地址", "my": "ပို့ဆောင်ရန်လိပ်စာ"},
+    "request.address_optional": {"en": "(optional for now)", "th": "(ยังไม่จำเป็นตอนนี้)", "vi": "(hiện chưa bắt buộc)", "zh": "（暂不强制）", "my": "(လောလောဆယ်မလိုအပ်သေးပါ)"},
+    "request.item": {"en": "What would you like to order?", "th": "อยากสั่งอะไร?", "vi": "Bạn muốn đặt gì?", "zh": "您想订购什么？", "my": "ဘာမှာလိုပါသလဲ?"},
+    "request.link": {"en": "Product link", "th": "ลิงก์สินค้า", "vi": "Liên kết sản phẩm", "zh": "商品链接", "my": "ပစ္စည်းလင့်ခ်"},
+    "request.optional": {"en": "(optional)", "th": "(ไม่บังคับ)", "vi": "(không bắt buộc)", "zh": "（可选）", "my": "(မဖြစ်မနေမလို)"},
+    "request.budget": {"en": "Your budget (for the item itself — shipping is separate)", "th": "งบประมาณของคุณ (ค่าสินค้าเท่านั้น ไม่รวมค่าส่ง)", "vi": "Ngân sách của bạn (chỉ tính sản phẩm — phí vận chuyển tính riêng)", "zh": "您的预算（仅商品本身——运费另计）", "my": "သင့်ဘတ်ဂျက် (ပစ္စည်းကိုယ်တိုင်အတွက်သာ — ပို့ဆောင်ခ သီးခြား)"},
+    "request.budget_placeholder": {"en": "e.g. around ฿2,000 — flexible", "th": "เช่น ประมาณ ๒,๐๐๐ บาท ยืดหยุ่นได้", "vi": "vd: khoảng ฿2,000 — có thể linh hoạt", "zh": "例如：约฿2,000——可灵活调整", "my": "ဥပမာ - ฿2,000 ခန့် — ပြောင်းလွယ်ပြင်လွယ်"},
+    "request.budget_hint": {"en": "This is what you're willing to pay for the item itself. Shipping is calculated separately once your item arrives at our warehouse.", "th": "นี่คืองบที่คุณยินดีจ่ายสำหรับตัวสินค้าเท่านั้น ค่าส่งจะคำนวณแยกหลังจากสินค้าถึงคลังของเรา", "vi": "Đây là số tiền bạn sẵn sàng trả cho sản phẩm. Phí vận chuyển sẽ được tính riêng khi hàng đến kho của chúng tôi.", "zh": "这是您愿意为商品本身支付的金额。运费将在商品到达我们仓库后另行计算。", "my": "ဤသည်မှာ ပစ္စည်းအတွက် သင်ပေးချေလိုသည့်ငွေပမာဏဖြစ်သည်။ ပို့ဆောင်ခကို ပစ္စည်းကျွန်ုပ်တို့ကုန်လှောင်ရုံရောက်မှ သီးခြားတွက်ချက်ပါမည်။"},
+    "request.delivery_estimates_title": {"en": "Delivery time estimates", "th": "ระยะเวลาจัดส่งโดยประมาณ", "vi": "Ước tính thời gian giao hàng", "zh": "预计送货时间", "my": "ပို့ဆောင်ချိန် ခန့်မှန်းချက်"},
+    "request.delivery_road": {"en": "Road (truck): 7–14 days", "th": "ทางรถ: 7–14 วัน", "vi": "Đường bộ (xe tải): 7–14 ngày", "zh": "陆运（卡车）：7–14天", "my": "လမ်းကြောင်း (ကား): ရက် ၇–၁၄ ရက်"},
+    "request.delivery_boat": {"en": "Boat (ship): 10–30 days", "th": "ทางเรือ: 10–30 วัน", "vi": "Đường biển (tàu): 10–30 ngày", "zh": "海运（船运）：10–30天", "my": "ရေကြောင်း (သင်္ဘော): ရက် ၁၀–၃၀ ရက်"},
+    "request.delivery_estimates_note": {"en": "Estimates only, not a guarantee — see our shipping terms.", "th": "เป็นเพียงการประมาณการ ไม่ใช่การรับประกัน — โปรดดูข้อกำหนดการจัดส่งของเรา", "vi": "Chỉ là ước tính, không phải cam kết — xem điều khoản vận chuyển của chúng tôi.", "zh": "仅为估计，非承诺——详见我们的运输条款。", "my": "ခန့်မှန်းချက်သာဖြစ်ပြီး အာမခံချက်မဟုတ်ပါ — ကျွန်ုပ်တို့၏ပို့ဆောင်မှုစည်းကမ်းများကို ကြည့်ပါ။"},
+    "request.reference_image": {"en": "Reference photo", "th": "รูปภาพอ้างอิง", "vi": "Ảnh tham khảo", "zh": "参考图片", "my": "ရည်ညွှန်းဓာတ်ပုံ"},
+    "request.reference_image_hint": {"en": "A screenshot or photo of the item helps us find exactly what you mean.", "th": "ภาพหน้าจอหรือรูปสินค้าจะช่วยให้เราหาสินค้าที่คุณต้องการได้ตรงขึ้น", "vi": "Ảnh chụp màn hình hoặc ảnh sản phẩm giúp chúng tôi tìm đúng thứ bạn cần.", "zh": "商品的截图或照片能帮助我们准确找到您想要的商品。", "my": "ပစ္စည်း၏ screenshot သို့မဟုတ် ဓာတ်ပုံသည် သင်ဆိုလိုသည်ကို အတိအကျရှာဖွေရန် ကူညီပေးပါသည်။"},
+    "request.agree_terms_prefix": {"en": "I have read and agree to the", "th": "ฉันได้อ่านและยอมรับ", "vi": "Tôi đã đọc và đồng ý với", "zh": "我已阅读并同意", "my": "ကျွန်ုပ် ဖတ်ရှုပြီး သဘောတူပါသည်"},
+    "request.agree_terms_link": {"en": "Shipping Terms & Liability Disclaimer", "th": "ข้อกำหนดการจัดส่งและข้อจำกัดความรับผิดชอบ", "vi": "Điều khoản vận chuyển & Miễn trừ trách nhiệm", "zh": "运输条款与责任免责声明", "my": "ပို့ဆောင်ရေးစည်းကမ်းနှင့် တာဝန်ကင်းလွတ်ချက်"},
+    "request.agree_terms_required": {"en": "Please confirm you've read and agree to the shipping terms before submitting.", "th": "กรุณายืนยันว่าคุณได้อ่านและยอมรับข้อกำหนดการจัดส่งก่อนส่งคำขอ", "vi": "Vui lòng xác nhận bạn đã đọc và đồng ý với điều khoản vận chuyển trước khi gửi.", "zh": "提交前请确认您已阅读并同意运输条款。", "my": "မပို့မီ ပို့ဆောင်ရေးစည်းကမ်းများကို ဖတ်ရှုသဘောတူကြောင်း အတည်ပြုပါ။"},
+    "request.other_contact": {"en": "Other contact", "th": "ช่องทางติดต่ออื่น", "vi": "Liên hệ khác", "zh": "其他联系方式", "my": "အခြားဆက်သွယ်ရန်"},
+    "request.other_contact_placeholder": {"en": "LINE: @user, email, or a Facebook link", "th": "LINE: @user, อีเมล หรือลิงก์ Facebook", "vi": "LINE: @user, email, hoặc liên kết Facebook", "zh": "LINE: @user、邮箱或Facebook链接", "my": "LINE: @user၊ အီးမေးလ် သို့မဟုတ် Facebook လင့်ခ်"},
+    "request.other_contact_hint": {"en": "In case we need to reach you a different way about pricing.", "th": "เผื่อเราต้องติดต่อคุณช่องทางอื่นเรื่องราคา", "vi": "Phòng khi chúng tôi cần liên hệ bạn theo cách khác về giá.", "zh": "以防我们需要通过其他方式联系您沟通价格。", "my": "ဈေးနှုန်းနှင့်ပတ်သက်၍ တခြားနည်းဖြင့် ဆက်သွယ်ရန်လိုအပ်ပါက။"},
+    "request.submit": {"en": "Submit request", "th": "ส่งคำขอ", "vi": "Gửi yêu cầu", "zh": "提交请求", "my": "တောင်းဆိုမှုပို့မည်"},
+    "request.save": {"en": "Save changes", "th": "บันทึกการแก้ไข", "vi": "Lưu thay đổi", "zh": "保存更改", "my": "ပြောင်းလဲမှုများကို သိမ်းမည်"},
+    "request.line_cta": {"en": "Message us on LINE", "th": "ทักแชท LINE", "vi": "Nhắn tin cho chúng tôi qua LINE", "zh": "通过LINE给我们发消息", "my": "LINE မှာ မက်ဆေ့ချ်ပို့ပါ"},
+    "request.line_hint": {"en": "Send your phone number on LINE so we can text you the moment your quote is ready — no extra code needed.", "th": "ส่งเบอร์โทรของคุณทาง LINE เพื่อให้เราแจ้งเตือนทันทีที่ใบเสนอราคาของคุณพร้อม ไม่ต้องใช้รหัสเพิ่ม", "vi": "Gửi số điện thoại của bạn qua LINE để chúng tôi nhắn tin ngay khi có báo giá — không cần thêm mã.", "zh": "在LINE上发送您的电话号码，我们会在报价准备好的第一时间通知您——无需额外代码。", "my": "LINE မှာ ဖုန်းနံပါတ်ပို့ပါက ဈေးနှုန်းအဆင်သင့်ဖြစ်သည်နှင့် ချက်ချင်းအကြောင်းကြားပေးပါမည် — ကုဒ်ထပ်မလိုပါ။"},
+    "request.bookmark": {"en": "Bookmark this page to check back", "th": "บันทึกหน้านี้ไว้เพื่อกลับมาดูภายหลัง", "vi": "Đánh dấu trang này để quay lại kiểm tra", "zh": "请收藏此页面以便日后查看", "my": "ပြန်စစ်ရန် ဤစာမျက်နှာကို Bookmark လုပ်ထားပါ"},
+    "request.quote_title": {"en": "Your quote", "th": "ใบเสนอราคาของคุณ", "vi": "Báo giá của bạn", "zh": "您的报价", "my": "သင့်ဈေးနှုန်း"},
+    "request.quote_item": {"en": "Item cost", "th": "ค่าสินค้า", "vi": "Giá sản phẩm", "zh": "商品费用", "my": "ပစ္စည်းကုန်ကျစရိတ်"},
+    "request.quote_shipping": {"en": "Shipping", "th": "ค่าส่ง", "vi": "Vận chuyển", "zh": "运费", "my": "ပို့ဆောင်ခ"},
+    "request.quote_shipping_note": {"en": "Calculated once your item arrives at our warehouse — not included in the budget you gave us.", "th": "คำนวณหลังจากสินค้าถึงคลังของเรา ไม่รวมอยู่ในงบที่คุณแจ้งไว้", "vi": "Được tính khi hàng đến kho của chúng tôi — không nằm trong ngân sách bạn đã cung cấp.", "zh": "在商品到达我们仓库后计算——不包含在您给出的预算内。", "my": "ပစ္စည်း ကုန်လှောင်ရုံရောက်မှ တွက်ချက်ပါမည် — သင်ပေးထားသော ဘတ်ဂျက်တွင် မပါဝင်ပါ။"},
+    "request.quote_total": {"en": "Total", "th": "ยอดรวม", "vi": "Tổng cộng", "zh": "总计", "my": "စုစုပေါင်း"},
+    "request.quote_budget": {"en": "Your item budget", "th": "งบค่าสินค้าของคุณ", "vi": "Ngân sách sản phẩm của bạn", "zh": "您的商品预算", "my": "သင့်ပစ္စည်းဘတ်ဂျက်"},
+    "request.quote_hint": {"en": "We'll message you on LINE to confirm before shipping.", "th": "เราจะทักไลน์เพื่อยืนยันก่อนจัดส่ง", "vi": "Chúng tôi sẽ nhắn tin qua LINE để xác nhận trước khi giao hàng.", "zh": "发货前我们会在LINE上与您确认。", "my": "မပို့မီ LINE မှာ အတည်ပြုရန် မက်ဆေ့ချ်ပို့ပါမည်။"},
+    "request.quote_within": {"en": "Item within budget", "th": "ค่าสินค้าอยู่ในงบ", "vi": "Sản phẩm trong ngân sách", "zh": "商品在预算内", "my": "ပစ္စည်းသည် ဘတ်ဂျက်အတွင်း"},
+    "request.quote_over": {"en": "Item over budget", "th": "ค่าสินค้าเกินงบ", "vi": "Sản phẩm vượt ngân sách", "zh": "商品超出预算", "my": "ပစ္စည်းသည် ဘတ်ဂျက်ကျော်"},
+    "request.quote_awaiting": {"en": "Awaiting quote", "th": "รอแจ้งราคา", "vi": "Đang chờ báo giá", "zh": "等待报价", "my": "ဈေးနှုန်းစောင့်ဆိုင်းဆဲ"},
+    "request.not_found_title": {"en": "Request not found", "th": "ไม่พบคำขอ", "vi": "Không tìm thấy yêu cầu", "zh": "未找到请求", "my": "တောင်းဆိုမှုမတွေ့ပါ"},
+    "request.not_found_body": {"en": "Please check your link and try again.", "th": "กรุณาตรวจสอบลิงก์แล้วลองใหม่อีกครั้ง", "vi": "Vui lòng kiểm tra liên kết và thử lại.", "zh": "请检查您的链接后重试。", "my": "လင့်ခ်ကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပါ။"},
+    "request.not_found_cta": {"en": "Submit a new request", "th": "ส่งคำขอใหม่", "vi": "Gửi yêu cầu mới", "zh": "提交新请求", "my": "တောင်းဆိုမှုအသစ်ပို့မည်"},
+    "request.error_required": {"en": "This is required.", "th": "กรุณากรอกข้อมูลนี้", "vi": "Trường này là bắt buộc.", "zh": "此项为必填。", "my": "ဤအချက်လိုအပ်ပါသည်။"},
+    "request.error_summary": {"en": "Please fix the highlighted fields below.", "th": "กรุณาแก้ไขช่องที่ไฮไลต์ไว้ด้านล่าง", "vi": "Vui lòng sửa các trường được đánh dấu bên dưới.", "zh": "请修正下方标记的字段。", "my": "အောက်တွင် မီးမောင်းထိုးပြထားသော အကွက်များကို ပြင်ပါ။"},
+    "request.error_reattach_photo": {"en": "Please reattach your reference photo — it wasn't saved because of the error above.", "th": "กรุณาแนบรูปภาพอ้างอิงอีกครั้ง — รูปเดิมไม่ถูกบันทึกไว้เนื่องจากข้อผิดพลาดด้านบน", "vi": "Vui lòng đính kèm lại ảnh tham khảo — ảnh chưa được lưu do lỗi ở trên.", "zh": "请重新附上参考图片——由于上述错误未能保存。", "my": "ရည်ညွှန်းဓာတ်ပုံကို ပြန်တွဲပါ — အထက်ပါအမှားကြောင့် မသိမ်းဆည်းနိုင်ခဲ့ပါ။"},
+    "request.wizard_next": {"en": "Next", "th": "ถัดไป", "vi": "Tiếp theo", "zh": "下一步", "my": "ရှေ့ဆက်ရန်"},
+    "request.wizard_back": {"en": "Back", "th": "ย้อนกลับ", "vi": "Quay lại", "zh": "返回", "my": "နောက်သို့"},
+    "terms.title": {"en": "Shipping Terms & Liability Disclaimer", "th": "ข้อกำหนดการจัดส่งและข้อจำกัดความรับผิดชอบ", "vi": "Điều khoản vận chuyển & Miễn trừ trách nhiệm", "zh": "运输条款与责任免责声明", "my": "ပို့ဆောင်ရေးစည်းကမ်းနှင့် တာဝန်ကင်းလွတ်ချက်"},
+    "terms.updated_label": {"en": "Last updated", "th": "อัปเดตล่าสุด", "vi": "Cập nhật lần cuối", "zh": "最后更新", "my": "နောက်ဆုံးမွမ်းမံသည့်ရက်"},
+    "terms.intro": {"en": "Please read this before submitting a request. By checking the agreement box on the request form, you confirm you understand and accept these terms.", "th": "กรุณาอ่านก่อนส่งคำขอ การติ๊กยอมรับในแบบฟอร์มถือว่าคุณเข้าใจและยอมรับข้อกำหนดเหล่านี้", "vi": "Vui lòng đọc điều này trước khi gửi yêu cầu. Khi đánh dấu vào ô đồng ý trên biểu mẫu, bạn xác nhận đã hiểu và chấp nhận các điều khoản này.", "zh": "提交请求前请阅读本条款。在请求表单上勾选同意框，即表示您已理解并接受这些条款。", "my": "တောင်းဆိုမှုမပို့မီ ဤအချက်ကို ဖတ်ရှုပါ။ တောင်းဆိုမှုပုံစံပေါ်ရှိ သဘောတူချက်ဘောက်စ်ကို အမှန်ခြစ်ခြင်းဖြင့် ဤစည်းကမ်းများကို နားလည်လက်ခံကြောင်း အတည်ပြုပါသည်။"},
+    "terms.summary_title": {"en": "The short version", "th": "สรุปแบบสั้นๆ", "vi": "Tóm tắt ngắn gọn", "zh": "简要概述", "my": "အကျဉ်းချုပ်"},
+    "terms.summary_1": {"en": "We buy and ship on your behalf — we're not the manufacturer or the store.", "th": "เราซื้อและจัดส่งแทนคุณ เราไม่ใช่ผู้ผลิตหรือร้านค้า", "vi": "Chúng tôi mua và vận chuyển thay mặt bạn — chúng tôi không phải nhà sản xuất hay cửa hàng.", "zh": "我们代您购买和运输——我们不是制造商或商店。", "my": "ကျွန်ုပ်တို့သည် သင့်ကိုယ်စား ဝယ်ယူပို့ဆောင်ပေးသူဖြစ်ပြီး၊ ထုတ်လုပ်သူ သို့မဟုတ် ဆိုင်မဟုတ်ပါ။"},
+    "terms.summary_2": {"en": "Your budget covers the item only; shipping is priced separately once it reaches our warehouse.", "th": "งบของคุณครอบคลุมแค่ค่าสินค้า ส่วนค่าส่งจะคิดแยกหลังของถึงคลัง", "vi": "Ngân sách của bạn chỉ bao gồm sản phẩm; phí vận chuyển được tính riêng khi hàng đến kho của chúng tôi.", "zh": "您的预算仅包含商品本身；运费将在商品到达我们仓库后另行计算。", "my": "သင့်ဘတ်ဂျက်သည် ပစ္စည်းအတွက်သာဖြစ်ပြီး၊ ပို့ဆောင်ခကို ကုန်လှောင်ရုံရောက်မှ သီးခြားတွက်ချက်ပါမည်။"},
+    "terms.summary_3": {"en": "Road takes 7–14 days, boat 10–30 days — real-world estimates, not promises.", "th": "ทางรถ 7–14 วัน ทางเรือ 10–30 วัน เป็นการประมาณการตามจริง ไม่ใช่คำสัญญา", "vi": "Đường bộ mất 7–14 ngày, đường biển 10–30 ngày — đây là ước tính thực tế, không phải cam kết.", "zh": "陆运需7–14天，海运需10–30天——为实际估计，非承诺。", "my": "လမ်းကြောင်းက ရက် ၇–၁၄ ရက်၊ ရေကြောင်းက ရက် ၁၀–၃၀ ရက် — လက်တွေ့ခန့်မှန်းချက်ဖြစ်ပြီး ကတိမဟုတ်ပါ။"},
+    "terms.summary_4": {"en": "Item quality or damage disputes go to the original seller, not us.", "th": "ปัญหาคุณภาพหรือความเสียหายของสินค้าต้องติดต่อผู้ขายต้นทาง ไม่ใช่เรา", "vi": "Tranh chấp về chất lượng hoặc hư hỏng sản phẩm thuộc trách nhiệm của người bán gốc, không phải chúng tôi.", "zh": "商品质量或损坏纠纷应联系原卖家，与我们无关。", "my": "ပစ္စည်းအရည်အသွေး သို့မဟုတ် ပျက်စီးမှုဆိုင်ရာ အငြင်းပွားမှုများသည် မူလရောင်းချသူထံသို့သာ သက်ဆိုင်ပြီး ကျွန်ုပ်တို့နှင့်မသက်ဆိုင်ပါ။"},
+    "terms.role_title": {"en": "SINEX is a forwarding agent, not the seller", "th": "SINEX เป็นตัวแทนรับส่งพัสดุ ไม่ใช่ผู้ขาย", "vi": "SINEX là đơn vị vận chuyển trung gian, không phải người bán", "zh": "SINEX是转运代理，非卖家", "my": "SINEX သည် ပို့ဆောင်ရေးကိုယ်စားလှယ်ဖြစ်ပြီး ရောင်းချသူမဟုတ်ပါ"},
+    "terms.role_body": {"en": "We purchase and/or forward items on your behalf from third-party sellers in China. We are an intermediary — we do not manufacture, own, or guarantee the items themselves.", "th": "เราซื้อและ/หรือส่งต่อสินค้าให้คุณจากผู้ขายบุคคลที่สามในประเทศจีน เราเป็นตัวกลาง ไม่ได้เป็นผู้ผลิต เจ้าของ หรือผู้รับประกันตัวสินค้า", "vi": "Chúng tôi mua và/hoặc chuyển tiếp sản phẩm thay mặt bạn từ các người bán bên thứ ba tại Trung Quốc. Chúng tôi là bên trung gian — không sản xuất, sở hữu hay bảo đảm cho sản phẩm.", "zh": "我们代您从中国第三方卖家处购买和/或转运商品。我们是中间方——不生产、不拥有、也不保证商品本身。", "my": "ကျွန်ုပ်တို့သည် တရုတ်နိုင်ငံရှိ တတိယပါတီရောင်းချသူများထံမှ သင့်ကိုယ်စား ဝယ်ယူ/ပို့ဆောင်ပေးပါသည်။ ကျွန်ုပ်တို့သည် အလယ်အလတ်ကိုယ်စားလှယ်ဖြစ်ပြီး ပစ္စည်းများကို ထုတ်လုပ်ခြင်း၊ ပိုင်ဆိုင်ခြင်း သို့မဟုတ် အာမခံခြင်း မပြုလုပ်ပါ။"},
+    "terms.liability_title": {"en": "No liability for item condition, damage, or quality", "th": "ไม่รับผิดชอบต่อสภาพ ความเสียหาย หรือคุณภาพของสินค้า", "vi": "Không chịu trách nhiệm về tình trạng, hư hỏng hoặc chất lượng sản phẩm", "zh": "对商品状况、损坏或质量概不负责", "my": "ပစ္စည်းအခြေအနေ၊ ပျက်စီးမှု သို့မဟုတ် အရည်အသွေးအတွက် တာဝန်မယူပါ"},
+    "terms.liability_body": {"en": "Disputes about an item's quality, authenticity, or damage from manufacturing are between you and the original seller — not SINEX. We take reasonable care in handling, but we do not refund or compensate for item defects or damage that occurred before or during the seller's own shipping to our warehouse.", "th": "ข้อพิพาทเกี่ยวกับคุณภาพ ความแท้ หรือความเสียหายจากการผลิตของสินค้า เป็นเรื่องระหว่างคุณกับผู้ขายต้นทาง ไม่ใช่ SINEX เราดูแลสินค้าด้วยความระมัดระวังตามสมควร แต่จะไม่คืนเงินหรือชดเชยความเสียหายที่เกิดขึ้นก่อนหรือระหว่างการจัดส่งของผู้ขายมายังคลังของเรา", "vi": "Tranh chấp về chất lượng, tính xác thực hoặc hư hỏng do sản xuất là giữa bạn và người bán gốc — không phải SINEX. Chúng tôi xử lý hàng hóa cẩn thận hợp lý, nhưng không hoàn tiền hoặc bồi thường cho lỗi sản phẩm hoặc hư hỏng xảy ra trước hoặc trong quá trình người bán vận chuyển đến kho của chúng tôi.", "zh": "关于商品质量、真伪或生产损坏的纠纷属于您与原卖家之间的事务——与SINEX无关。我们在处理商品时会尽合理注意义务，但对于卖家运送至我们仓库之前或期间发生的商品缺陷或损坏，我们不予退款或赔偿。", "my": "ပစ္စည်းအရည်အသွေး၊ စစ်မှန်မှု သို့မဟုတ် ထုတ်လုပ်မှုကြောင့်ပျက်စီးမှုဆိုင်ရာ အငြင်းပွားမှုများသည် သင်နှင့်မူလရောင်းချသူကြား ဖြစ်ပြီး SINEX နှင့်မသက်ဆိုင်ပါ။ ကျွန်ုပ်တို့ သင့်လျော်စွာ ဂရုစိုက်ကိုင်တွယ်သော်လည်း၊ ရောင်းချသူ၏ ကျွန်ုပ်တို့ကုန်လှောင်ရုံသို့ ပို့ဆောင်ခြင်းမပြုမီ သို့မဟုတ် ပြုလုပ်နေစဉ်အတွင်း ဖြစ်ပေါ်သော ချို့ယွင်းမှု သို့မဟုတ် ပျက်စီးမှုအတွက် ငွေပြန်အမ်း သို့မဟုတ် လျော်ကြေးမပေးပါ။"},
+    "terms.delay_title": {"en": "Delivery estimates are not guarantees", "th": "ระยะเวลาจัดส่งเป็นเพียงการประมาณการ ไม่ใช่การรับประกัน", "vi": "Ước tính giao hàng không phải là cam kết", "zh": "送货时间为估计，非承诺", "my": "ပို့ဆောင်ချိန်ခန့်မှန်းချက်များသည် အာမခံချက်မဟုတ်ပါ"},
+    "terms.delay_body": {"en": "Typical delivery times are road (truck): 7–14 days, boat (ship): 10–30 days, counted from when your item leaves the China warehouse. These are estimates based on normal conditions — customs, weather, holidays, and carrier delays can extend them. A delay past these estimates is not, on its own, grounds for a refund or compensation from SINEX.", "th": "ระยะเวลาจัดส่งโดยทั่วไป ทางรถ 7–14 วัน ทางเรือ 10–30 วัน นับจากสินค้าออกจากคลังจีน เป็นเพียงการประมาณการภายใต้สภาวะปกติ ศุลกากร สภาพอากาศ วันหยุด และความล่าช้าของผู้ขนส่งอาจทำให้ใช้เวลานานกว่านี้ ความล่าช้าเกินกว่าที่ประมาณการไว้เพียงอย่างเดียว ไม่ถือเป็นเหตุให้ต้องคืนเงินหรือชดเชยจาก SINEX", "vi": "Thời gian giao hàng thông thường là đường bộ (xe tải): 7–14 ngày, đường biển (tàu): 10–30 ngày, tính từ khi hàng rời kho Trung Quốc. Đây là ước tính dựa trên điều kiện bình thường — hải quan, thời tiết, ngày lễ và trì hoãn của đơn vị vận chuyển có thể kéo dài thời gian này. Việc trễ hơn so với ước tính không tự nó là căn cứ để yêu cầu hoàn tiền hoặc bồi thường từ SINEX.", "zh": "一般送货时间为：陆运（卡车）7–14天，海运（船运）10–30天，自商品离开中国仓库起计算。此为正常情况下的估计——海关、天气、假期及承运商延误均可能延长此时间。仅因超出该估计时间而延迟，本身不构成向SINEX要求退款或赔偿的理由。", "my": "ပုံမှန်ပို့ဆောင်ချိန်များမှာ လမ်းကြောင်း (ကား): ရက် ၇–၁၄ ရက်၊ ရေကြောင်း (သင်္ဘော): ရက် ၁၀–၃၀ ရက်ဖြစ်ပြီး၊ ပစ္စည်းတရုတ်ကုန်လှောင်ရုံမှ ထွက်ခွာချိန်မှ တွက်ချက်သည်။ ဤသည်မှာ ပုံမှန်အခြေအနေများအောက်တွင် ခန့်မှန်းချက်များဖြစ်ပြီး — အကောက်ခွန်၊ မိုးလေဝသ၊ အားလပ်ရက်များနှင့် သယ်ယူပို့ဆောင်ရေးကြန့်ကြာမှုများက ကြာချိန်ကို တိုးနိုင်ပါသည်။ ဤခန့်မှန်းချက်များထက် နောက်ကျခြင်းသည် ၎င်းတစ်ခုတည်းဖြင့် SINEX ထံမှ ငွေပြန်အမ်းခြင်း သို့မဟုတ် လျော်ကြေးတောင်းခံရန် အကြောင်းပြချက်မဟုတ်ပါ။"},
+    "terms.pricing_title": {"en": "Budget & pricing", "th": "งบประมาณและราคา", "vi": "Ngân sách & giá cả", "zh": "预算与定价", "my": "ဘတ်ဂျက်နှင့် ဈေးနှုန်း"},
+    "terms.pricing_body": {"en": "The budget you give us on the request form covers the item's purchase price only. Shipping cost is calculated separately once your item is received and measured/weighed at our warehouse, and is not included in that budget figure.", "th": "งบประมาณที่คุณแจ้งในแบบฟอร์มครอบคลุมเฉพาะราคาสินค้าเท่านั้น ค่าจัดส่งจะคำนวณแยกต่างหากหลังจากสินค้าถึงคลังและมีการชั่ง/วัดขนาดแล้ว ไม่รวมอยู่ในตัวเลขงบประมาณดังกล่าว", "vi": "Ngân sách bạn cung cấp trên biểu mẫu chỉ bao gồm giá mua sản phẩm. Phí vận chuyển được tính riêng khi hàng được nhận và đo/cân tại kho của chúng tôi, không nằm trong con số ngân sách đó.", "zh": "您在请求表单中提供的预算仅涵盖商品的购买价格。运费将在商品到达我们仓库并完成测量/称重后另行计算，不包含在该预算数字内。", "my": "တောင်းဆိုမှုပုံစံတွင် သင်ပေးထားသော ဘတ်ဂျက်သည် ပစ္စည်း၀ယ်ယူစရိတ်ကိုသာ ဖော်ပြသည်။ ပို့ဆောင်ခကို ပစ္စည်း ကျွန်ုပ်တို့ကုန်လှောင်ရုံတွင် လက်ခံရရှိပြီး အလေးချိန်/အရွယ်အစားတိုင်းတာပြီးမှ သီးခြားတွက်ချက်ပြီး ထိုဘတ်ဂျက်ကိန်းတွင် မပါဝင်ပါ။"},
+    "terms.payment_title": {"en": "Payment", "th": "การชำระเงิน", "vi": "Thanh toán", "zh": "付款", "my": "ငွေပေးချေမှု"},
+    "terms.payment_body": {"en": "Payment is arranged directly with us over LINE (in Thai baht) once your quote is confirmed — this website does not collect any card or bank details.", "th": "การชำระเงินจะตกลงกันโดยตรงทาง LINE (เป็นเงินบาท) หลังยืนยันราคาแล้ว เว็บไซต์นี้ไม่มีการเก็บข้อมูลบัตรหรือบัญชีธนาคารใดๆ", "vi": "Thanh toán được sắp xếp trực tiếp với chúng tôi qua LINE (bằng baht Thái) sau khi báo giá được xác nhận — trang web này không thu thập thông tin thẻ hoặc ngân hàng.", "zh": "报价确认后，付款将通过LINE与我们直接安排（以泰铢结算）——本网站不收集任何银行卡或账户信息。", "my": "ဈေးနှုန်းအတည်ပြုပြီးနောက် LINE မှတစ်ဆင့် ကျွန်ုပ်တို့နှင့် တိုက်ရိုက်ငွေပေးချေမှု စီစဉ်ပါသည် (ထိုင်းဘတ်ဖြင့်) — ဤဝက်ဘ်ဆိုက်သည် ကတ် သို့မဟုတ် ဘဏ်အချက်အလက်များကို မသိမ်းဆည်းပါ။"},
+    "terms.cancel_title": {"en": "Cancellation & refusal", "th": "การยกเลิกและการปฏิเสธคำขอ", "vi": "Hủy đơn & từ chối", "zh": "取消与拒绝", "my": "ပယ်ဖျက်ခြင်းနှင့် ငြင်းပယ်ခြင်း"},
+    "terms.cancel_body": {"en": "We may decline to fulfil a request (e.g. a restricted or unavailable item) before purchase without penalty to either side. Once we've paid the seller on your behalf, that payment is generally non-refundable by SINEX, consistent with the seller's own terms.", "th": "เราอาจปฏิเสธคำขอได้ (เช่น สินค้าต้องห้ามหรือไม่มีจำหน่าย) ก่อนการซื้อ โดยไม่มีผลเสียต่อทั้งสองฝ่าย เมื่อเราชำระเงินให้ผู้ขายแทนคุณแล้ว การชำระเงินนั้นโดยทั่วไปจะไม่สามารถขอคืนจาก SINEX ได้ ตามเงื่อนไขของผู้ขายเอง", "vi": "Chúng tôi có thể từ chối thực hiện yêu cầu (ví dụ: sản phẩm bị hạn chế hoặc không có sẵn) trước khi mua mà không bị phạt cho cả hai bên. Sau khi chúng tôi đã thanh toán cho người bán thay mặt bạn, khoản thanh toán đó thường không được SINEX hoàn lại, phù hợp với điều khoản của chính người bán.", "zh": "在购买前，我们可能拒绝执行某项请求（例如受限或缺货商品），双方均无需承担违约责任。一旦我们代您向卖家付款，该笔款项通常SINEX将不予退还，此与卖家自身条款一致。", "my": "ကျွန်ုပ်တို့သည် ဝယ်ယူမှုမပြုမီ တောင်းဆိုမှုတစ်ခုကို ပယ်ချနိုင်ပါသည် (ဥပမာ - ကန့်သတ်ထားသော သို့မဟုတ် မရရှိနိုင်သောပစ္စည်း) ဘက်နှစ်ဘက်စလုံးအတွက် ဒဏ်ကြေးမရှိပါ။ သင့်ကိုယ်စား ရောင်းချသူထံ ငွေပေးချေပြီးသည်နှင့် ထိုငွေသည် ရောင်းချသူ၏ကိုယ်ပိုင်စည်းကမ်းများနှင့်အညီ ပုံမှန်အားဖြင့် SINEX မှ ပြန်အမ်းမည်မဟုတ်ပါ။"},
+    "terms.privacy_title": {"en": "Your information", "th": "ข้อมูลของคุณ", "vi": "Thông tin của bạn", "zh": "您的信息", "my": "သင့်အချက်အလက်"},
+    "terms.privacy_body": {"en": "We collect your name, phone number, address, and (optionally) a reference photo solely to process your request and communicate with you over LINE. We don't sell or share it with third parties beyond what's needed to ship your item.", "th": "เราเก็บชื่อ เบอร์โทร ที่อยู่ และรูปภาพอ้างอิง (ถ้ามี) เพื่อดำเนินการตามคำขอและติดต่อคุณทาง LINE เท่านั้น เราไม่ขายหรือแชร์ข้อมูลของคุณกับบุคคลที่สาม เว้นแต่จำเป็นต่อการจัดส่งสินค้า", "vi": "Chúng tôi thu thập tên, số điện thoại, địa chỉ và (tùy chọn) ảnh tham khảo của bạn chỉ để xử lý yêu cầu và liên lạc với bạn qua LINE. Chúng tôi không bán hoặc chia sẻ thông tin này với bên thứ ba ngoài phạm vi cần thiết để giao hàng.", "zh": "我们收集您的姓名、电话号码、地址以及（可选的）参考图片，仅用于处理您的请求并通过LINE与您沟通。除运送商品所需外，我们不会出售或与第三方共享这些信息。", "my": "ကျွန်ုပ်တို့သည် သင့်အမည်၊ ဖုန်းနံပါတ်၊ လိပ်စာနှင့် (ရွေးချယ်နိုင်သော) ရည်ညွှန်းဓာတ်ပုံကို သင့်တောင်းဆိုမှုကို လုပ်ဆောင်ရန်နှင့် LINE မှတစ်ဆင့် ဆက်သွယ်ရန်အတွက်သာ စုဆောင်းပါသည်။ ပစ္စည်းပို့ဆောင်ရန်လိုအပ်သည်အပြင် တတိယပါတီများထံ ရောင်းချခြင်း သို့မဟုတ် မျှဝေခြင်း မပြုလုပ်ပါ။"},
+    "terms.law_title": {"en": "Governing terms", "th": "กฎหมายที่ใช้บังคับ", "vi": "Luật điều chỉnh", "zh": "适用法律", "my": "အုပ်ချုပ်သည့်စည်းကမ်းများ"},
+    "terms.law_body": {"en": "These terms are intended to be interpreted under the laws of Thailand. If any part is found unenforceable, the rest still stands.", "th": "ข้อกำหนดนี้มีเจตนาให้ตีความตามกฎหมายไทย หากข้อใดไม่สามารถบังคับใช้ได้ ข้อกำหนดส่วนที่เหลือยังมีผลบังคับใช้ต่อไป", "vi": "Các điều khoản này được diễn giải theo luật pháp Thái Lan. Nếu bất kỳ phần nào không thể thực thi, phần còn lại vẫn có hiệu lực.", "zh": "本条款旨在依照泰国法律解释。如任何部分被认定无法执行，其余部分仍然有效。", "my": "ဤစည်းကမ်းများကို ထိုင်းနိုင်ငံဥပဒေများအောက်တွင် အဓိပ္ပာယ်ဖွင့်ဆိုရန် ရည်ရွယ်ပါသည်။ တစ်စိတ်တစ်ပိုင်းသည် အတည်မပြုနိုင်ပါက ကျန်အပိုင်းများ ဆက်လက်တည်မြဲပါသည်။"},
+    "terms.contact_title": {"en": "Questions", "th": "หากมีคำถาม", "vi": "Câu hỏi", "zh": "问题咨询", "my": "မေးခွန်းများ"},
+    "terms.contact_body": {"en": "Message us on LINE any time before confirming an order if anything here is unclear.", "th": "ทักแชท LINE หาเราได้ทุกเมื่อก่อนยืนยันคำสั่งซื้อ หากมีข้อสงสัย", "vi": "Nếu có điều gì chưa rõ, hãy nhắn tin cho chúng tôi qua LINE bất cứ lúc nào trước khi xác nhận đơn hàng.", "zh": "如有任何不清楚之处，请在确认订单前随时通过LINE联系我们。", "my": "ဤနေရာတွင် တစ်စုံတစ်ခုမရှင်းလင်းပါက အော်ဒါမအတည်ပြုမီ LINE မှာ မည်သည့်အချိန်မဆို ဆက်သွယ်နိုင်ပါသည်။"},
+    "terms.back": {"en": "Back to request form", "th": "กลับไปหน้าแจ้งความจำนงสั่งซื้อ", "vi": "Quay lại biểu mẫu yêu cầu", "zh": "返回请求表单", "my": "တောင်းဆိုမှုပုံစံသို့ ပြန်သွားမည်"},
+    "request.step_details": {"en": "Your details", "th": "ข้อมูลของคุณ", "vi": "Thông tin của bạn", "zh": "您的详细信息", "my": "သင့်အသေးစိတ်အချက်အလက်"},
+    "request.step_photo": {"en": "Photo", "th": "รูปภาพ", "vi": "Ảnh", "zh": "照片", "my": "ဓာတ်ပုံ"},
+    "request.step_budget": {"en": "Budget", "th": "งบประมาณ", "vi": "Ngân sách", "zh": "预算", "my": "ဘတ်ဂျက်"},
+    "request.dropzone_hint": {"en": "Drag a photo here, or click to browse", "th": "ลากรูปมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์", "vi": "Kéo ảnh vào đây, hoặc nhấp để chọn", "zh": "将照片拖到此处，或点击浏览", "my": "ဓာတ်ပုံကို ဤနေရာသို့ဆွဲထည့်ပါ သို့မဟုတ် ကလစ်နှိပ်၍ ရွေးပါ"},
+    "error.413_title": {"en": "That file is too large", "th": "ไฟล์มีขนาดใหญ่เกินไป", "vi": "Tệp quá lớn", "zh": "文件过大", "my": "ဖိုင်ကြီးလွန်းပါသည်"},
+    "error.413_body": {"en": "Photos must be under 5 MB. Please go back and choose a smaller image.", "th": "รูปภาพต้องมีขนาดไม่เกิน 5 MB กรุณาย้อนกลับแล้วเลือกไฟล์ที่เล็กลง", "vi": "Ảnh phải dưới 5 MB. Vui lòng quay lại và chọn ảnh nhỏ hơn.", "zh": "照片必须小于5MB。请返回并选择较小的图片。", "my": "ဓာတ်ပုံများသည် 5 MB အောက်ဖြစ်ရမည်။ ပြန်သွားပြီး ပိုငယ်သောပုံကို ရွေးပါ။"},
+    "error.csrf_title": {"en": "That page had expired", "th": "หน้านี้หมดอายุแล้ว", "vi": "Trang đó đã hết hạn", "zh": "该页面已过期", "my": "ထိုစာမျက်နှာ သက်တမ်းကုန်သွားပါပြီ"},
+    "error.csrf_body": {"en": "Your session timed out or the form was submitted twice. Please go back and try again.", "th": "เซสชันของคุณหมดอายุ หรือมีการส่งฟอร์มซ้ำ กรุณาย้อนกลับแล้วลองใหม่อีกครั้ง", "vi": "Phiên làm việc của bạn đã hết hạn hoặc biểu mẫu đã được gửi hai lần. Vui lòng quay lại và thử lại.", "zh": "您的会话已超时，或表单被重复提交。请返回后重试。", "my": "သင့်ဆက်ရှင် သက်တမ်းကုန်သွားပါသည် သို့မဟုတ် ပုံစံကို နှစ်ကြိမ်တင်သွင်းခဲ့ပါသည်။ ပြန်သွားပြီး ထပ်ကြိုးစားပါ။"},
+    "error.500_title": {"en": "Something went wrong on our end", "th": "เกิดข้อผิดพลาดจากทางเรา", "vi": "Đã có lỗi xảy ra từ phía chúng tôi", "zh": "我们这边出了点问题", "my": "ကျွန်ုပ်တို့ဘက်တွင် တစ်ခုခုမှားယွင်းသွားပါသည်"},
+    "error.500_body": {"en": "Please try again in a moment. If it keeps happening, message us on LINE and we'll sort it out.", "th": "กรุณาลองใหม่อีกครั้งในอีกสักครู่ หากยังพบปัญหาอยู่ ทักแชท LINE หาเราได้เลย", "vi": "Vui lòng thử lại sau ít phút. Nếu vẫn tiếp diễn, hãy nhắn tin cho chúng tôi qua LINE để được hỗ trợ.", "zh": "请稍后再试。如果问题持续出现，请通过LINE联系我们，我们会为您处理。", "my": "ခဏနေ ထပ်ကြိုးစားပါ။ ဆက်ဖြစ်နေပါက LINE မှာ ဆက်သွယ်ပါ ကျွန်ုပ်တို့ ဖြေရှင်းပေးပါမည်။"},
+    "error.go_back": {"en": "Go back", "th": "ย้อนกลับ", "vi": "Quay lại", "zh": "返回", "my": "နောက်သို့ပြန်သွားမည်"},
 }
 
 
@@ -1099,31 +1110,41 @@ def parse_customer_route():
     return {"ok": True, **result}, 200
 
 
-def _find_or_create_customer(name, phone, address):
+def _find_or_create_customer(name, phone, address, other_contact=None):
     """Repeat customers (matched by normalized phone) get attached to their
     existing customer_id instead of a fresh row, so order history / LINE
     linking / "my orders" / reorder-without-re-entering-info all see one
     identity. A blank phone always creates a new customer (nothing to match
-    against). Shared by new_order() (admin) and the public /request intake
-    (Phase 2.5) so both paths dedupe identically."""
+    against). Shared by new_order() (admin), the public /request intake
+    (Phase 2.5), and order_detail()'s customer-info edit, so every intake
+    path dedupes identically.
+
+    A blank address/other_contact on THIS call never overwrites a
+    previously-stored value -- only a non-blank value replaces what's
+    there. (Previously any blank silently nulled out a real address; the
+    LINE "NEW ORDER" reorder flow never re-asks for it, so a repeat
+    customer reordering by chat would have wiped their own address.)"""
     db = get_db()
     now = datetime.utcnow().isoformat()
 
     phone_norm = _normalize_phone(phone)
     if phone_norm:
         existing = db.execute(
-            "SELECT id FROM customers WHERE phone_normalized = ?", (phone_norm,)
+            "SELECT id, address, other_contact FROM customers WHERE phone_normalized = ?", (phone_norm,)
         ).fetchone()
         if existing:
+            new_address = address.strip() if address and address.strip() else existing["address"]
+            new_contact = other_contact.strip() if other_contact and other_contact.strip() else existing["other_contact"]
             db.execute(
-                "UPDATE customers SET name = ?, address = ? WHERE id = ?",
-                (name, address or None, existing["id"]),
+                "UPDATE customers SET name = ?, address = ?, other_contact = ? WHERE id = ?",
+                (name, new_address, new_contact, existing["id"]),
             )
             return existing["id"]
 
     cur = db.execute(
-        "INSERT INTO customers (name, phone, phone_normalized, address, created_at) VALUES (?, ?, ?, ?, ?)",
-        (name, phone, phone_norm, address, now),
+        "INSERT INTO customers (name, phone, phone_normalized, address, other_contact, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (name, phone, phone_norm, address, other_contact, now),
     )
     return cur.lastrowid
 
@@ -1134,6 +1155,21 @@ def _customer_line_id(customer_id):
     push is even possible before trying one."""
     row = get_db().execute("SELECT line_user_id FROM customers WHERE id = ?", (customer_id,)).fetchone()
     return row["line_user_id"] if row else None
+
+
+def _record_info_source(customer_id, raw_text, extracted_phone):
+    """Records what a "paste customer info" auto-extraction (parse_customer())
+    actually produced, so an admin can review/correct it later from the
+    order screen if the AI got something wrong. Overwrites -- this is the
+    latest source only, not a full history, proportionate to "let me check
+    and fix it" rather than a compliance audit trail. No-op on a blank
+    raw_text (nothing was actually pasted this time)."""
+    raw_text = (raw_text or "").strip()
+    if not raw_text:
+        return
+    snippet = raw_text if len(raw_text) <= 300 else raw_text[:300] + "…"
+    note = f"Pasted {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC: \"{snippet}\" → phone: {extracted_phone or '(none found)'}"
+    get_db().execute("UPDATE customers SET info_source_note = ? WHERE id = ?", (note, customer_id))
 
 
 @app.route("/admin/orders/new", methods=["POST"])
@@ -1154,6 +1190,7 @@ def new_order():
     db = get_db()
     now = datetime.utcnow().isoformat()
     customer_id = _find_or_create_customer(name, phone, address)
+    _record_info_source(customer_id, request.form.get("source_blob", ""), phone)
 
     link_code = secrets.token_hex(3).upper()  # e.g. 'A1B2C3'
     db.execute(
@@ -1194,6 +1231,8 @@ def order_detail(order_id):
     db = get_db()
     order = db.execute(
         "SELECT orders.*, customers.name AS customer_name, customers.phone AS customer_phone, "
+        "customers.address AS customer_address, customers.other_contact AS customer_other_contact, "
+        "customers.info_source_note AS customer_info_source_note, "
         "customers.line_user_id AS line_user_id "
         "FROM orders JOIN customers ON orders.customer_id = customers.id WHERE orders.id = ?",
         (order_id,),
@@ -1230,6 +1269,34 @@ def order_detail(order_id):
             if order["line_user_id"]:
                 line_push(order["line_user_id"], f"[{order['link_code']}] Update: {CUSTOMER_STATUS.get(new_status, new_status)}")
             flash(f"Status updated to “{CUSTOMER_STATUS.get(new_status, new_status)}”.")
+            return redirect(url_for("order_detail", order_id=order_id))
+
+        # Customer info correction -- a separate small form/action so it has
+        # its own validation and never gets entangled with the big order-info
+        # save below. Always edits THIS order's own customer row directly (by
+        # customer_id, same pattern already used in view_request()'s edit
+        # branch) -- deliberately NOT routed through _find_or_create_customer()'s
+        # phone-matching, which is for deciding whether a NEW submission
+        # belongs to an existing customer, not for correcting one you already
+        # know. A blank address/other_contact here never erases a
+        # previously-good value (same non-destructive-update fix as Bug B).
+        if request.form.get("action") == "edit_customer":
+            cust_name = request.form.get("cust_name", "").strip()
+            cust_phone = request.form.get("cust_phone", "").strip()
+            cust_address = request.form.get("cust_address", "").strip()
+            cust_other_contact = request.form.get("cust_other_contact", "").strip()
+            if not cust_name or not cust_phone:
+                flash("Customer name and phone are required.")
+                return redirect(url_for("order_detail", order_id=order_id))
+            new_address = cust_address if cust_address else (order["customer_address"] or None)
+            new_contact = cust_other_contact if cust_other_contact else (order["customer_other_contact"] or None)
+            db.execute(
+                "UPDATE customers SET name = ?, phone = ?, phone_normalized = ?, address = ?, other_contact = ? WHERE id = ?",
+                (cust_name, cust_phone, _normalize_phone(cust_phone), new_address, new_contact, order["customer_id"]),
+            )
+            _record_info_source(order["customer_id"], request.form.get("cust_source_blob", ""), cust_phone)
+            db.commit()
+            flash("Customer info updated.")
             return redirect(url_for("order_detail", order_id=order_id))
 
         source_link = request.form.get("source_link", "").strip()
@@ -1477,12 +1544,25 @@ def requests_page():
 
         now = datetime.utcnow().isoformat()
         link_code = secrets.token_hex(3).upper()
+        # Carry over what the request already had -- the customer's uploaded
+        # reference photo and the quote the admin already priced -- instead
+        # of silently dropping them and making the admin redo the work.
+        # item_image: no file move needed, _save_request_reference_image()
+        # already wrote both the full and _thumb files under the req_<code>
+        # name via _compress_and_save(), and item_image_thumb() resolves
+        # correctly regardless of filename prefix. shipping_cost lands in
+        # house_ship_fee (the request only ever collects one combined
+        # shipping figure; china_ship_fee is left for the admin to split out
+        # if they want a different breakdown). payment_amount stays blank --
+        # a quote isn't the same as payment actually received.
         cur = db.execute(
             "INSERT INTO orders (customer_id, tracking_mode, tracking_lot, agency_id, status, "
-            "link_code, source_link, item_desc_en, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, 'ordered', ?, ?, ?, ?, ?)",
+            "link_code, source_link, item_desc_en, item_image, item_cost, house_ship_fee, "
+            "created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, 'ordered', ?, ?, ?, ?, ?, ?, ?, ?)",
             (req["customer_id"], mode, int(lot_raw), agency_id, link_code,
-             req["source_link"], req["item_description"], now, now),
+             req["source_link"], req["item_description"], req["reference_image"],
+             req["item_cost"], req["shipping_cost"], now, now),
         )
         order_id = cur.lastrowid
         db.execute(
@@ -1490,6 +1570,8 @@ def requests_page():
             (order_id, now, req["id"]),
         )
         db.commit()
+        if req["shipping_cost"] is not None:
+            flash(f"Note: the quoted shipping (฿{req['shipping_cost']:,.0f}) was carried into \"House ship\" — rebalance with China ship if needed.")
         line_id = _customer_line_id(req["customer_id"])
         if line_id:
             track_url = f"{_public_base_url()}/track/{link_code}"
@@ -1503,7 +1585,8 @@ def requests_page():
 
     pending = db.execute(
         "SELECT order_requests.*, customers.name AS customer_name, customers.phone AS customer_phone, "
-        "customers.address AS customer_address FROM order_requests "
+        "customers.address AS customer_address, customers.info_source_note AS customer_info_source_note "
+        "FROM order_requests "
         "JOIN customers ON order_requests.customer_id = customers.id "
         "WHERE order_requests.status = 'new' ORDER BY order_requests.created_at"
     ).fetchall()
@@ -1977,7 +2060,7 @@ def new_request():
 
         db = get_db()
         now = datetime.utcnow().isoformat()
-        customer_id = _find_or_create_customer(name, phone, address)
+        customer_id = _find_or_create_customer(name, phone, address, other_contact)
         request_code = secrets.token_hex(3).upper()
         reference_image = _save_request_reference_image(request.files.get("reference_image"), request_code)
         db.execute(
@@ -2026,9 +2109,17 @@ def view_request(request_code):
             return redirect(url_for("view_request", request_code=request_code))
 
         now = datetime.utcnow().isoformat()
+        # A blank address/other_contact here must never erase a previously-good
+        # value (same fix as _find_or_create_customer()) -- fall back to what's
+        # already on file rather than nulling it out.
+        current = db.execute(
+            "SELECT address, other_contact FROM customers WHERE id = ?", (req["customer_id"],)
+        ).fetchone()
+        new_address = address if address else (current["address"] or None)
+        new_contact = other_contact if other_contact else (current["other_contact"] or None)
         db.execute(
-            "UPDATE customers SET name = ?, phone = ?, phone_normalized = ?, address = ? WHERE id = ?",
-            (name, phone, _normalize_phone(phone), address or None, req["customer_id"]),
+            "UPDATE customers SET name = ?, phone = ?, phone_normalized = ?, address = ?, other_contact = ? WHERE id = ?",
+            (name, phone, _normalize_phone(phone), new_address, new_contact, req["customer_id"]),
         )
         db.execute(
             "UPDATE order_requests SET item_description = ?, source_link = ?, budget = ?, other_contact = ?, "
@@ -2429,10 +2520,15 @@ def webhook():
             if item_description:
                 now = datetime.utcnow().isoformat()
                 req_code = secrets.token_hex(3).upper()
+                # other_contact is pulled from the customer record, not
+                # re-asked -- they're already linked/identified, and (Phase
+                # 6) other_contact now lives on customers precisely so a
+                # returning customer never has to give it again.
                 db.execute(
                     "INSERT INTO order_requests (customer_id, request_code, item_description, source_link, "
-                    "status, created_at, updated_at) VALUES (?, ?, ?, ?, 'new', ?, ?)",
-                    (customer["id"], req_code, item_description, source_link or None, now, now),
+                    "other_contact, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'new', ?, ?)",
+                    (customer["id"], req_code, item_description, source_link or None,
+                     customer["other_contact"], now, now),
                 )
                 db.commit()
                 _reply("Got it — we'll set this up and confirm once it ships.")

@@ -18,6 +18,7 @@
         <p class="text-sm font-semibold">{{ r.customer_name }}</p>
         <p class="text-xs" style="color: var(--text-faint);">{{ r.customer_phone }}{% if r.customer_address %} &middot; {{ r.customer_address }}{% endif %}</p>
         {% if r.other_contact %}<p class="text-xs" style="color: var(--text-faint);">Other contact: <span style="color: var(--text-secondary);">{{ r.other_contact }}</span></p>{% endif %}
+        {% if r.customer_info_source_note %}<p class="mt-1 text-[11px]" style="color: var(--text-faint);">{{ r.customer_info_source_note }}</p>{% endif %}
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <p class="text-sm" style="color: var(--text-secondary);">{{ r.item_description }}</p>
           {{ translate_link(r.item_description) }}

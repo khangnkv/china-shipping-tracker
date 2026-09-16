@@ -39,8 +39,13 @@
     <span id="splitMsg" class="ml-2 text-xs" style="color: var(--text-faint);"></span>
   </div>
 
-  <form method="post" action="{{ url_for('new_order') }}" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  <form method="post" action="{{ url_for('new_order') }}" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        onsubmit="document.getElementById('sourceBlob').value = document.getElementById('blob').value;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="source_blob" id="sourceBlob">
+    {# ^ whatever's in the paste box at submit time -- if non-blank, saved on
+       the customer as a reviewable note (see _record_info_source() in
+       app.py) of what text the name/phone/address were extracted from. #}
     <div><label class="label" for="f_name">Customer name</label><input id="f_name" class="input" name="name" placeholder="Customer name" required></div>
     <div><label class="label" for="f_phone">Phone</label><input id="f_phone" class="input" name="phone" placeholder="Phone"></div>
     <div><label class="label" for="f_agency">Agency</label>
@@ -184,28 +189,12 @@
 </div>
 
 <script>
-  async function splitCustomer() {
-    const blob = document.getElementById('blob').value.trim();
-    const msg = document.getElementById('splitMsg');
-    const btn = document.getElementById('splitBtn');
-    if (!blob) { msg.textContent = 'Paste something first.'; return; }
-    btn.disabled = true; msg.textContent = 'Splitting…';
-    try {
-      const body = new URLSearchParams({ text: blob, csrf_token: '{{ csrf_token() }}' });
-      const r = await fetch('{{ url_for("parse_customer_route") }}', { method: 'POST', body });
-      const d = await r.json();
-      if (d.ok) {
-        if (d.name) document.getElementById('f_name').value = d.name;
-        if (d.phone) document.getElementById('f_phone').value = d.phone;
-        if (d.address) document.getElementById('f_address').value = d.address;
-        msg.textContent = 'Filled — please review.';
-      } else {
-        msg.textContent = 'Auto-split unavailable (no API key) — fill manually.';
-      }
-    } catch (e) {
-      msg.textContent = 'Split failed — fill manually.';
-    }
-    btn.disabled = false;
+  function splitCustomer() {
+    splitCustomerBlob({
+      blobId: 'blob', nameId: 'f_name', phoneId: 'f_phone', addressId: 'f_address',
+      msgId: 'splitMsg', btnId: 'splitBtn',
+      url: '{{ url_for("parse_customer_route") }}', csrfToken: '{{ csrf_token() }}',
+    });
   }
 
   function filterRows() {

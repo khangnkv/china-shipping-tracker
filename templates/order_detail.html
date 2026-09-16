@@ -41,6 +41,53 @@
   </form>
 </section>
 
+{# Customer info -- editable so a typo/mistake can be corrected after the
+   fact (previously impossible from this screen at all); paste-to-fill
+   reuses the same quick-fill as the new-order form; the info-source note
+   (when present) shows what the last paste-extraction actually produced,
+   so it can be reviewed/corrected rather than trusted blindly. #}
+<section class="card mb-5 p-5">
+  <div class="mb-3 flex items-center justify-between">
+    <h3 class="text-sm font-semibold">Customer</h3>
+    <button type="button" class="btn" data-copy-all="#customerCopyBlock">{{ icon('clipboard-list') }} Copy all info</button>
+  </div>
+
+  {% if order.customer_info_source_note %}
+  <p class="mb-3 rounded-lg p-2.5 text-xs" style="background: var(--bg-card-soft); border: 1px solid var(--border); color: var(--text-faint);">{{ order.customer_info_source_note }}</p>
+  {% endif %}
+
+  <div class="mb-3 rounded-lg p-3" style="border: 1px solid var(--border); background: var(--bg-card-soft);">
+    <label class="label" for="custBlob">Paste customer info <span class="font-normal" style="color: var(--text-faint);">(name, phone, address — any format)</span></label>
+    <textarea id="custBlob" class="input" rows="2" placeholder="คุณสมชาย ใจดี 081-234-5678 123/45 ถ.สุขุมวิท ..."></textarea>
+    <button type="button" id="custSplitBtn" class="btn mt-2" onclick="splitCustomerDetail()">Split into fields</button>
+    <span id="custSplitMsg" class="ml-2 text-xs" style="color: var(--text-faint);"></span>
+  </div>
+
+  <form method="post" class="grid gap-3 sm:grid-cols-2"
+        onsubmit="document.getElementById('custSourceBlob').value = document.getElementById('custBlob').value;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="edit_customer">
+    <input type="hidden" name="cust_source_blob" id="custSourceBlob">
+    <div><label class="label" for="custName">Name</label><input id="custName" class="input" name="cust_name" value="{{ order.customer_name }}" required></div>
+    <div><label class="label" for="custPhone">Phone</label><input id="custPhone" class="input" name="cust_phone" value="{{ order.customer_phone or '' }}" required></div>
+    <div class="sm:col-span-2"><label class="label" for="custAddress">Address</label><input id="custAddress" class="input" name="cust_address" value="{{ order.customer_address or '' }}"></div>
+    <div class="sm:col-span-2"><label class="label" for="custOtherContact">Other contact <span class="font-normal" style="color: var(--text-faint);">(LINE/email/FB)</span></label><input id="custOtherContact" class="input" name="cust_other_contact" value="{{ order.customer_other_contact or '' }}"></div>
+    <div class="sm:col-span-2"><button type="submit" class="btn-primary">{{ icon('check-circle') }} Save customer info</button></div>
+  </form>
+
+  {# Hidden source the "Copy all info" button reads from -- kept accurate
+     via Jinja on every render, not JS, so it's right even before any edits. #}
+  <textarea id="customerCopyBlock" class="hidden" readonly>{{ [
+      "Tracking: " ~ order.link_code,
+      "Name: " ~ order.customer_name,
+      "Phone: " ~ (order.customer_phone or "—"),
+      "Address: " ~ (order.customer_address or "—"),
+      "Other contact: " ~ (order.customer_other_contact or "—"),
+      "Item: " ~ (order.item_desc_en or order.item_title_zh or "—"),
+      "Mode/LOT: " ~ order.tracking_mode ~ " " ~ order.tracking_lot,
+    ] | join("\n") }}</textarea>
+</section>
+
 <form method="post" enctype="multipart/form-data" class="grid gap-5 lg:grid-cols-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -167,6 +214,14 @@
     var msg = 'Update this order to "' + label + '"?';
     if (form.dataset.lineLinked) msg += ' The customer will be notified on LINE immediately.';
     return window.confirm(msg);
+  }
+
+  function splitCustomerDetail() {
+    splitCustomerBlob({
+      blobId: 'custBlob', nameId: 'custName', phoneId: 'custPhone', addressId: 'custAddress',
+      msgId: 'custSplitMsg', btnId: 'custSplitBtn',
+      url: '{{ url_for("parse_customer_route") }}', csrfToken: '{{ csrf_token() }}',
+    });
   }
 
   function toggleCarrier() {

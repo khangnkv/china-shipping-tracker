@@ -92,13 +92,18 @@
 {# ---- Language switch: EN / ไทย pill for customer-facing pages. Persists
    via /set-locale/<lang>. Requires `locale` in context -- import "with
    context". Translated strings come from the t() global (app.py). #}
+{# A 2-pill toggle doesn't scale past 2 languages -- a native <select> does,
+   stays fully accessible/keyboard-usable for free, and keeps its own
+   platform-native dropdown affordance (deliberately not stripped via
+   appearance:none) so it still reads as "this is a menu" at a glance. #}
 {% macro lang_switch() -%}
-<div class="inline-flex items-center gap-0.5 rounded-full p-0.5" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
-  <a href="{{ url_for('set_locale', lang='en') }}" class="rounded-full px-2.5 py-1 text-xs font-bold transition"
-     style="{% if locale == 'en' %}background: var(--brand); color: #fff;{% else %}color: var(--text-muted);{% endif %}">EN</a>
-  <a href="{{ url_for('set_locale', lang='th') }}" class="rounded-full px-2.5 py-1 text-xs font-semibold transition"
-     style="{% if locale == 'th' %}background: var(--brand); color: #fff;{% else %}color: var(--text-muted);{% endif %}">ไทย</a>
-</div>
+<select onchange="if(this.value) location.href=this.value;" aria-label="Language"
+        class="rounded-full border px-2 py-1 text-xs font-bold transition"
+        style="background: var(--bg-card-soft); border-color: var(--border); color: var(--text-muted);">
+  {% for code in ['en', 'th', 'vi', 'zh', 'my'] %}
+  <option value="{{ url_for('set_locale', lang=code) }}" {{ 'selected' if locale == code else '' }}>{{ LOCALE_LABELS[code] }}</option>
+  {% endfor %}
+</select>
 {%- endmacro %}
 
 {# ---- Free Google Translate deep-link for admin-side Thai/mixed text

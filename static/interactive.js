@@ -274,6 +274,64 @@
     showStep(Math.min(Math.max(startAt, 1), last), startAt > 1);
   });
 
+  // ---- Generic "paste customer info, auto-split" helper -----------------
+  // Shared by Orders' new-order form and Order detail's customer-edit form
+  // (both call window.splitCustomerBlob with their own field ids) so the
+  // fetch/fill logic lives in one place instead of being copy-pasted.
+  window.splitCustomerBlob = async function (opts) {
+    var blob = document.getElementById(opts.blobId).value.trim();
+    var msg = document.getElementById(opts.msgId);
+    var btn = document.getElementById(opts.btnId);
+    if (!blob) { msg.textContent = "Paste something first."; return; }
+    btn.disabled = true;
+    msg.textContent = "Splitting…";
+    try {
+      var body = new URLSearchParams({ text: blob, csrf_token: opts.csrfToken });
+      var r = await fetch(opts.url, { method: "POST", body: body });
+      var d = await r.json();
+      if (d.ok) {
+        if (d.name) document.getElementById(opts.nameId).value = d.name;
+        if (d.phone) document.getElementById(opts.phoneId).value = d.phone;
+        if (d.address && opts.addressId) document.getElementById(opts.addressId).value = d.address;
+        msg.textContent = "Filled — please review.";
+      } else {
+        msg.textContent = "Auto-split unavailable (no API key) — fill manually.";
+      }
+    } catch (e) {
+      msg.textContent = "Split failed — fill manually.";
+    }
+    btn.disabled = false;
+  };
+
+  // ---- Copy-all-info button ----------------------------------------------
+  // Assembles the text in [data-copy-source] into one block and copies it
+  // via the Clipboard API; falls back to selecting a plain <textarea> when
+  // that API isn't available (older browser, non-HTTPS context, etc.).
+  document.querySelectorAll("[data-copy-all]").forEach(function (btn) {
+    btn.addEventListener("click", async function () {
+      var source = document.querySelector(btn.dataset.copyAll);
+      if (!source) return;
+      var text = source.value !== undefined ? source.value : source.textContent;
+      var label = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied!";
+      } catch (e) {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand("copy"); btn.textContent = "Copied!"; }
+        catch (e2) { btn.textContent = "Copy failed — select manually"; }
+        document.body.removeChild(ta);
+      }
+      setTimeout(function () { btn.textContent = label; }, 1800);
+    });
+  });
+
   // ---- Landing page scroll-reveal ---------------------------------------
   // Progressive enhancement only -- .reveal elements are fully visible by
   // default (see the .reveal CSS rule) so nothing breaks without JS.
