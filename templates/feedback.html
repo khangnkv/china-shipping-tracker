@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"{% if theme_attr %} data-theme="{{ theme_attr }}"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('feedback.title') }} — SINEX</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+{% from "_macros.html" import icon, theme_switch, lang_switch with context %}
+<body class="min-h-screen">
+
+<div class="px-4 pb-5 pt-6 shadow-sm" style="background: var(--bg-card);">
+  <div class="mx-auto max-w-md">
+    <div class="flex items-center justify-between">
+      <a href="{{ url_for('landing') }}" class="flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg" style="background: var(--brand);">
+          <svg width="16" height="16" viewBox="0 0 40 40" fill="none" aria-hidden="true"><ellipse cx="20" cy="20" rx="18" ry="7" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-dasharray="3 2.4" transform="rotate(-18 20 20)" opacity="0.85"/><circle cx="20" cy="20" r="12.5" fill="#ffffff"/></svg>
+        </span>
+        <span class="text-sm font-semibold">SINEX</span>
+      </a>
+      <div class="flex items-center gap-1.5">{{ lang_switch() }}{{ theme_switch() }}</div>
+    </div>
+    <h1 class="mt-4 text-xl font-bold">{{ t('feedback.title') }}</h1>
+    {% if not submitted %}<p class="mt-1 text-sm" style="color: var(--text-muted);">{{ t('feedback.subtitle') }}</p>{% endif %}
+  </div>
+</div>
+
+<div class="mx-auto max-w-md px-4 py-6">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for m in messages %}
+          <div class="js-toast rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{{ m }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if submitted %}
+  <div class="flex flex-col items-center py-10 text-center">
+    <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-full" style="background: var(--success-bg);">
+      <span style="color: var(--success-text);">{{ icon('check-circle', 'h-7 w-7') }}</span>
+    </div>
+    <h2 class="text-lg font-bold">{{ t('feedback.thanks_title') }}</h2>
+    <p class="mt-1.5 text-sm" style="color: var(--text-muted);">{{ t('feedback.thanks_body') }}</p>
+    <a href="{{ url_for('landing') }}" class="btn-primary mt-6 w-full max-w-xs justify-center">{{ t('track.not_found_home') }}</a>
+  </div>
+  {% else %}
+  <form method="post" class="card space-y-4 p-5">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label class="label" for="fbMessage">{{ t('feedback.message_label') }}</label>
+      <textarea id="fbMessage" class="input" name="message" rows="5" required autofocus>{{ values.message if values else '' }}</textarea>
+    </div>
+    <div>
+      <label class="label" for="fbName">{{ t('feedback.name_label') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
+      <input id="fbName" class="input" name="name" value="{{ values.name if values else '' }}">
+    </div>
+    <div>
+      <label class="label" for="fbContact">{{ t('feedback.contact_label') }} <span class="font-normal" style="color: var(--text-faint);">{{ t('request.optional') }}</span></label>
+      <input id="fbContact" class="input" name="contact" value="{{ values.contact if values else '' }}">
+      <p class="mt-1.5 text-xs" style="color: var(--text-faint);">{{ t('feedback.contact_hint') }}</p>
+    </div>
+    <button type="submit" class="btn-primary w-full justify-center">{{ icon('message-circle') }} {{ t('feedback.submit') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='interactive.js') }}" defer></script>
+</body>
+</html>

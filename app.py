@@ -282,6 +282,16 @@ def init_db():
             updated_at TEXT NOT NULL,
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         );
+
+        CREATE TABLE IF NOT EXISTS feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            contact TEXT,
+            message TEXT NOT NULL,
+            source TEXT NOT NULL DEFAULT 'web',   -- 'web' or 'line'
+            handled INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        );
         """
     )
     # CREATE TABLE IF NOT EXISTS won't add columns to an existing tracker.db,
@@ -557,7 +567,12 @@ def _nav_badge_counts():
     flagged_threads = db.execute(
         "SELECT COUNT(DISTINCT customer_id) FROM messages WHERE needs_admin = 1"
     ).fetchone()[0]
-    return {"pending_requests_count": pending_requests, "flagged_threads_count": flagged_threads}
+    unhandled_feedback = db.execute("SELECT COUNT(*) FROM feedback WHERE handled = 0").fetchone()[0]
+    return {
+        "pending_requests_count": pending_requests,
+        "flagged_threads_count": flagged_threads,
+        "unhandled_feedback_count": unhandled_feedback,
+    }
 
 
 @app.context_processor
@@ -645,6 +660,17 @@ TRANSLATIONS = {
     "track.eta_label": {"en": "Estimated delivery", "th": "วันจัดส่งโดยประมาณ"},
     "track.eta_note": {"en": "Estimate only, not a guarantee.", "th": "เป็นเพียงการประมาณการ ไม่ใช่การรับประกัน"},
     "track.qr_hint": {"en": "Save or share this code", "th": "บันทึกหรือแชร์รหัสนี้"},
+    "feedback.nav_cta": {"en": "Send feedback", "th": "ส่งความคิดเห็น"},
+    "feedback.title": {"en": "Send feedback", "th": "ส่งความคิดเห็น"},
+    "feedback.subtitle": {"en": "Tell us what's working, what isn't, or what you wish we had — every message gets read.", "th": "บอกเราว่าอะไรดี อะไรไม่ดี หรืออยากให้เรามีอะไรเพิ่ม — ทุกข้อความจะถูกอ่าน"},
+    "feedback.message_label": {"en": "Your feedback", "th": "ความคิดเห็นของคุณ"},
+    "feedback.name_label": {"en": "Name", "th": "ชื่อ"},
+    "feedback.contact_label": {"en": "Contact", "th": "ช่องทางติดต่อ"},
+    "feedback.contact_hint": {"en": "Phone or LINE, in case we'd like to follow up (optional).", "th": "เบอร์โทรหรือไลน์ เผื่อเราอยากติดต่อกลับ (ไม่บังคับ)"},
+    "feedback.submit": {"en": "Send feedback", "th": "ส่งความคิดเห็น"},
+    "feedback.error_required": {"en": "Please write your feedback before sending.", "th": "กรุณาเขียนความคิดเห็นก่อนส่ง"},
+    "feedback.thanks_title": {"en": "Thank you!", "th": "ขอบคุณ!"},
+    "feedback.thanks_body": {"en": "Your feedback helps us improve — we read every message.", "th": "ความคิดเห็นของคุณช่วยให้เราพัฒนาได้ดีขึ้น เราอ่านทุกข้อความ"},
     "request.title": {"en": "Request an order", "th": "แจ้งความจำนงสั่งซื้อ"},
     "request.title_submitted": {"en": "Your order request", "th": "คำขอสั่งซื้อของคุณ"},
     "request.subtitle": {"en": "Tell us what you'd like to order and how to reach you — we'll take it from there.", "th": "บอกเราว่าอยากสั่งอะไรและติดต่อคุณได้ทางไหน ที่เหลือเราจัดการเอง"},
@@ -935,13 +961,37 @@ def _clear_old_images(link_code):
                 pass
 
 
+def _has_real_transparency(img):
+    """True only when the image actually USES transparency (a visible
+    transparent/semi-transparent pixel), not just when it happens to carry
+    an alpha channel -- a phone photo re-saved as PNG is RGB in substance,
+    and keeping it as PNG for that reason alone produces a multi-MB file
+    for no visual benefit (a real 1920x1440 photo measured ~2.4MB as PNG
+    vs. ~200KB as JPEG at the same quality)."""
+    if img.mode == "P":
+        return "transparency" in img.info
+    if img.mode in ("RGBA", "LA"):
+        return img.getchannel("A").getextrema()[0] < 255
+    return False
+
+
 def _compress_and_save(fileobj, base_path_no_ext, ext):
     """Resize+re-encode an uploaded/fetched image and write both a full
     (<=IMAGE_MAX_DIM px) and a thumbnail (<=THUMB_MAX_DIM px) version to disk,
     so list/carousel views never load a full-size photo. Raises on a genuinely
-    unreadable file -- caller decides how to surface that to the user."""
+    unreadable file -- caller decides how to surface that to the user.
+
+    Returns the extension actually used to save the files, which may differ
+    from the `ext` passed in: any upload without real transparency (the
+    overwhelming common case -- product photos, screenshots) is always
+    stored as JPEG regardless of its original format. This keeps files
+    small and, critically, keeps every order's image within the JPEG/PNG
+    set LINE's Flex "image" component can actually render -- a .webp
+    upload used to silently lose its LINE carousel photo entirely."""
     img = ImageOps.exif_transpose(Image.open(fileobj))  # respect phone camera orientation
-    if ext == "jpg" and img.mode in ("RGBA", "P", "LA"):
+    if not _has_real_transparency(img):
+        ext = "jpg"
+    if ext == "jpg" and img.mode != "RGB":
         img = img.convert("RGB")
 
     save_kwargs = {
@@ -959,6 +1009,7 @@ def _compress_and_save(fileobj, base_path_no_ext, ext):
 
     _resized(IMAGE_MAX_DIM).save(f"{base_path_no_ext}.{ext}", **save_kwargs)
     _resized(THUMB_MAX_DIM).save(f"{base_path_no_ext}_thumb.{ext}", **save_kwargs)
+    return ext
 
 
 def item_image_thumb(item_image):
@@ -1236,12 +1287,12 @@ def order_detail(order_id):
             os.makedirs(UPLOAD_DIR, exist_ok=True)
             _clear_old_images(order["link_code"])
             try:
-                _compress_and_save(file, os.path.join(UPLOAD_DIR, order["link_code"]), ext)
+                saved_ext = _compress_and_save(file, os.path.join(UPLOAD_DIR, order["link_code"]), ext)
             except Exception as e:
                 logger.error("image compression failed: %s", e)
                 flash("Couldn't process that image — try a different file.")
                 return redirect(url_for("order_detail", order_id=order_id))
-            item_image = f"uploads/{order['link_code']}.{ext}"
+            item_image = f"uploads/{order['link_code']}.{saved_ext}"
 
         db.execute(
             "UPDATE orders SET source_link = ?, item_image = ?, item_title_zh = ?, "
@@ -1308,14 +1359,14 @@ def fetch_image(order_id):
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         _clear_old_images(order["link_code"])
         try:
-            _compress_and_save(io.BytesIO(resp.content), os.path.join(UPLOAD_DIR, order["link_code"]), ext)
+            saved_ext = _compress_and_save(io.BytesIO(resp.content), os.path.join(UPLOAD_DIR, order["link_code"]), ext)
         except Exception as e:
             logger.error("image compression failed (fetch): %s", e)
             flash("Fetched image but couldn't process it — paste or drag one instead.")
             return redirect(url_for("order_detail", order_id=order_id))
         db.execute(
             "UPDATE orders SET item_image = ? WHERE id = ?",
-            (f"uploads/{order['link_code']}.{ext}", order_id),
+            (f"uploads/{order['link_code']}.{saved_ext}", order_id),
         )
         db.commit()
         flash("Image fetched from link.")
@@ -1652,6 +1703,21 @@ def inbox_page():
     return render_template("inbox.html", threads=threads, history=history)
 
 
+@app.route("/admin/feedback", methods=["GET", "POST"])
+@login_required
+def feedback_admin_page():
+    db = get_db()
+    if request.method == "POST":
+        db.execute(
+            "UPDATE feedback SET handled = 1 - handled WHERE id = ?",
+            (request.form.get("feedback_id"),),
+        )
+        db.commit()
+        return redirect(url_for("feedback_admin_page"))
+    entries = db.execute("SELECT * FROM feedback ORDER BY handled ASC, created_at DESC").fetchall()
+    return render_template("feedback_admin.html", entries=entries)
+
+
 # ---------- Analytics ----------
 
 def _avg(values):
@@ -1835,16 +1901,39 @@ def _save_request_reference_image(file, request_code):
         return None
     base = os.path.join(UPLOAD_DIR, f"req_{request_code}")
     try:
-        _compress_and_save(file, base, ext)
+        saved_ext = _compress_and_save(file, base, ext)
     except Exception:
         logger.warning("Could not process reference image for request %s", request_code, exc_info=True)
         return None
-    return f"uploads/req_{request_code}.{ext}"
+    return f"uploads/req_{request_code}.{saved_ext}"
 
 
 @app.route("/terms", methods=["GET"])
 def terms_page():
     return render_template("terms.html")
+
+
+@app.route("/feedback", methods=["GET", "POST"])
+@limiter.limit("10 per hour")
+def feedback_page():
+    """Open feedback box -- deliberately not tied to a customer/order, so it
+    also works for someone who hasn't ordered yet. Read (and marked handled)
+    from /admin/feedback; nothing here is customer-visible again afterward."""
+    if request.method == "POST":
+        message = request.form.get("message", "").strip()
+        if not message:
+            flash(t("feedback.error_required"))
+            return render_template("feedback.html", values=request.form, submitted=False)
+        db = get_db()
+        db.execute(
+            "INSERT INTO feedback (name, contact, message, source, created_at) VALUES (?, ?, ?, 'web', ?)",
+            (request.form.get("name", "").strip() or None,
+             request.form.get("contact", "").strip() or None,
+             message, datetime.utcnow().isoformat()),
+        )
+        db.commit()
+        return render_template("feedback.html", values=None, submitted=True)
+    return render_template("feedback.html", values={"name": "", "contact": "", "message": ""}, submitted=False)
 
 
 @app.route("/request", methods=["GET", "POST"])
@@ -1982,6 +2071,7 @@ BILINGUAL_PHRASES = {
     "human": ["human", "agent", "support", "คุยกับคน", "ติดต่อแอดมิน", "แอดมิน", "พนักงาน"],
     "greeting": ["hello", "hi ", "hey", "สวัสดี", "หวัดดี"],
     "thanks": ["thanks", "thank you", "thx", "ขอบคุณ", "ขอบใจ"],
+    "feedback": ["feedback", "suggestion", "complaint", "ข้อเสนอแนะ", "ฟีดแบ็ก", "ติชม"],
 }
 
 INTENT_CATEGORIES = set(BILINGUAL_PHRASES) | {"contact_info", "other"}
@@ -2028,6 +2118,7 @@ def classify_intent(text):
         "human (wants to talk to a person, OR sounds frustrated/upset/complaining), "
         "greeting (hello with no specific ask), "
         "thanks (acknowledgment/thank you), "
+        "feedback (wants to give feedback/suggestions about the SERVICE itself, not about one order), "
         "other (anything else). "
         "Leave extraction fields blank unless clearly present in the message.",
         text, max_tokens=300,
@@ -2124,13 +2215,24 @@ def _order_history_carousel(customer_id):
                 }],
             },
         }
-        # LINE's Flex "image" component requires JPEG/PNG over HTTPS -- skip
-        # the hero for .webp thumbnails rather than risk a broken image.
+        # LINE's Flex "image" component requires JPEG/PNG over HTTPS (now
+        # guaranteed by _compress_and_save() converting everything without
+        # real transparency to JPEG -- see its docstring). item_image_thumb()
+        # is still a pure filename transform with no filesystem check, so
+        # also confirm the thumb file actually exists before building a URL
+        # to it: a dangling reference here (a legacy upload that predates
+        # the compression pipeline, a manual DB edit) used to silently
+        # produce a live-but-404 image URL -- LINE renders that as a blank
+        # white box with no error anywhere, exactly the reported bug.
         thumb = item_image_thumb(o["item_image"])
-        if thumb and thumb.lower().endswith((".jpg", ".jpeg", ".png")):
+        thumb_path = os.path.join(os.path.dirname(__file__), "static", thumb) if thumb else None
+        if thumb and thumb.lower().endswith((".jpg", ".jpeg", ".png")) and thumb_path and os.path.exists(thumb_path):
             bubble["hero"] = {
                 "type": "image", "url": f"{base}/static/{thumb}",
                 "size": "full", "aspectRatio": "1:1", "aspectMode": "cover",
+                # Tap the photo itself to open tracking, not just the footer
+                # button -- a fully tappable image tile, not a flat picture.
+                "action": {"type": "uri", "uri": f"{base}/track/{o['link_code']}"},
             }
         bubbles.append(bubble)
 
@@ -2299,7 +2401,8 @@ def webhook():
 
         def _handle_help():
             _reply(_line_text(
-                "You can:\n📦 Type MY ORDERS to see your shipments\n🛒 Type NEW ORDER to request another\n💬 Talk to support anytime",
+                "You can:\n📦 Type MY ORDERS to see your shipments\n🛒 Type NEW ORDER to request another\n"
+                "💬 Talk to support anytime\n📝 Type FEEDBACK to tell us what to improve",
                 quick_replies=[("📦 My Orders", "MY ORDERS")] + TALK_TO_HUMAN_QUICK_REPLY,
             ))
 
@@ -2314,6 +2417,13 @@ def webhook():
 
         def _handle_thanks():
             _reply("You're welcome! 🙂")
+
+        def _handle_feedback():
+            _reply(
+                "We'd love your feedback! Tap here: "
+                f"{_public_base_url()}/feedback\n"
+                "เราอยากรับฟังความคิดเห็นของคุณ กดลิงก์ด้านบนได้เลย"
+            )
 
         def _handle_new_order(item_description=None, source_link=None):
             if item_description:
@@ -2359,6 +2469,7 @@ def webhook():
         INTENT_HANDLERS = {
             "status": _handle_status, "history": _handle_history, "help": _handle_help,
             "human": _handle_human, "greeting": _handle_greeting, "thanks": _handle_thanks,
+            "feedback": _handle_feedback,
         }
 
         upper_text = text.strip().upper()

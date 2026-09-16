@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, translate_link %}
+{% block content %}
+<h2 class="mb-1 text-lg font-bold">Feedback</h2>
+<p class="mb-4 text-sm" style="color: var(--text-faint);">Submitted via the public feedback page. Mark an entry handled once you've read it and decided whether it's worth acting on.</p>
+
+{% if entries %}
+<div class="space-y-3">
+  {% for f in entries %}
+  <div class="card p-4 {{ 'opacity-60' if f.handled else '' }}">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="text-sm font-semibold">{{ f.name or "Anonymous" }}</p>
+          {% if f.contact %}<span class="text-xs" style="color: var(--text-faint);">{{ f.contact }}</span>{% endif %}
+          <span class="text-xs" style="color: var(--text-faint);">&middot; {{ f.created_at | local_dt }}</span>
+          {% if f.source == 'line' %}<span class="text-xs" style="color: var(--text-faint);">&middot; via LINE</span>{% endif %}
+        </div>
+        <div class="mt-2 flex flex-wrap items-start gap-2">
+          <p class="whitespace-pre-wrap text-sm" style="color: var(--text-secondary);">{{ f.message }}</p>
+          {{ translate_link(f.message) }}
+        </div>
+      </div>
+      <form method="post" class="shrink-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="feedback_id" value="{{ f.id }}">
+        <button type="submit" class="btn">{{ icon('check-circle') }} {{ 'Mark unhandled' if f.handled else 'Mark handled' }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card py-16 text-center">
+  <div class="mx-auto mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('message-circle', 'h-10 w-10') }}</div>
+  <p class="text-sm" style="color: var(--text-faint);">No feedback yet.</p>
+</div>
+{% endif %}
+{% endblock %}

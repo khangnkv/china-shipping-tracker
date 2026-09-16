@@ -24,6 +24,7 @@
         ('orders_page', 'Orders'),
         ('requests_page', 'Requests'),
         ('inbox_page', 'Inbox'),
+        ('feedback_admin_page', 'Feedback'),
         ('match_page', 'Paste LOT list'),
         ('agencies_page', 'Agencies'),
         ('stats', 'Stats'),
@@ -36,6 +37,7 @@
         {{ label }}
         {% if endpoint == 'requests_page' and pending_requests_count %}<span class="ml-1 rounded-full px-1.5 py-0.5 text-xs font-semibold text-white" style="background: var(--brand);">{{ pending_requests_count }}</span>{% endif %}
         {% if endpoint == 'inbox_page' and flagged_threads_count %}<span class="ml-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-semibold text-white">{{ flagged_threads_count }}</span>{% endif %}
+        {% if endpoint == 'feedback_admin_page' and unhandled_feedback_count %}<span class="ml-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-semibold text-white">{{ unhandled_feedback_count }}</span>{% endif %}
       </a>
       {% endfor %}
       {{ theme_switch() }}
