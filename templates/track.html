@@ -9,7 +9,7 @@
 {% from "_macros.html" import icon, status_badge, theme_switch, lang_switch with context %}
 <body class="min-h-screen">
 
-{% if order is none %}
+{% macro brand_header() %}
   <div class="px-4 pb-5 pt-6 shadow-sm" style="background: var(--bg-card);">
     <div class="mx-auto max-w-md">
       <div class="flex items-center justify-between">
@@ -23,11 +23,66 @@
       </div>
     </div>
   </div>
+{% endmacro %}
+
+{% if lookup %}
+  {{ brand_header() }}
+  <div class="mx-auto max-w-md px-4 py-8">
+    <h1 class="text-xl font-bold">{{ t('track.lookup_title') }}</h1>
+    <p class="mt-1.5 text-sm" style="color: var(--text-muted);">{{ t('track.lookup_subtitle') }}</p>
+
+    {% if lookup_results is none %}
+    {# Initial state: just the phone form. #}
+    <form method="post" action="{{ url_for('track_lookup') }}" class="card mt-5 space-y-3 p-5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div>
+        <label class="label" for="lookupPhone">{{ t('track.lookup_phone_label') }}</label>
+        <input id="lookupPhone" class="input {{ 'input-error' if lookup_error else '' }}" name="phone" type="tel" autofocus required>
+        {% if lookup_error %}<p class="mt-1 text-xs font-medium" style="color: var(--danger-dot);">{{ lookup_error }}</p>{% endif %}
+      </div>
+      <button type="submit" class="btn-primary w-full justify-center">{{ icon('search') }} {{ t('track.lookup_submit') }}</button>
+    </form>
+    {% elif lookup_results|length == 0 %}
+    {# Submitted, no match. #}
+    <div class="mt-5 flex flex-col items-center py-8 text-center">
+      <div class="mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('alert-circle', 'h-10 w-10') }}</div>
+      <p class="text-sm" style="color: var(--text-muted);">{{ t('track.lookup_no_match') }}</p>
+      <a href="{{ url_for('track_lookup') }}" class="mt-4 text-sm font-medium underline" style="color: var(--brand-text);">{{ t('track.lookup_submit') }}</a>
+    </div>
+    {% else %}
+    {# 2+ orders on this phone number. #}
+    <p class="mb-2.5 mt-5 text-xs font-bold uppercase tracking-wide" style="color: var(--text-faint);">{{ t('track.lookup_results_title') }}</p>
+    <div class="space-y-2">
+      {% for o in lookup_results %}
+      <a href="{{ url_for('track', link_code=o.link_code) }}" class="card flex items-center justify-between gap-3 p-4 transition active:scale-[0.99]">
+        <div class="min-w-0">
+          <p class="font-mono text-xs" style="color: var(--text-faint);">{{ o.link_code }}</p>
+          <p class="truncate text-sm font-medium">{{ o.item_desc_en or o.item_title_zh or o.link_code }}</p>
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          {{ status_badge(o.status, "sm") }}
+          {{ icon('chevron-right') }}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if LINE_CONTACT %}
+    <a href="https://line.me/ti/p/~{{ LINE_CONTACT.lstrip('@') }}" target="_blank" rel="noopener noreferrer"
+       class="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#05b04c] active:scale-[0.98]">
+      {{ icon('message-circle', 'h-5 w-5') }} {{ t('track.contact_line') }}
+    </a>
+    {% endif %}
+  </div>
+{% elif order is none %}
+  {{ brand_header() }}
   <div class="mx-auto flex max-w-md flex-col items-center px-4 py-12 text-center">
     <div class="mb-3 flex justify-center" style="color: var(--text-faint2);">{{ icon('alert-circle', 'h-10 w-10') }}</div>
     <h1 class="text-xl font-bold">{{ t('track.not_found_title') }}</h1>
     <p class="mt-1.5 text-sm" style="color: var(--text-muted);">{{ t('track.not_found_body') }}</p>
     <div class="mt-6 flex w-full flex-col gap-2.5">
+      <a href="{{ url_for('track_lookup') }}" class="btn w-full justify-center">{{ icon('search') }} {{ t('track.lookup_cta') }}</a>
       <a href="{{ url_for('landing') }}" class="btn-primary w-full justify-center">{{ t('track.not_found_home') }}</a>
       {% if LINE_CONTACT %}
       <a href="https://line.me/ti/p/~{{ LINE_CONTACT.lstrip('@') }}" target="_blank" rel="noopener noreferrer"
@@ -132,6 +187,18 @@
         </div>
         {% endfor %}
       </div>
+      {% if order.status != 'delivered' %}
+      {% set eta = estimated_delivery(order) %}
+      {% if eta %}
+      <div class="mt-4 flex items-center justify-between gap-2 rounded-lg p-3" style="background: var(--bg-card-soft); border: 1px solid var(--border);">
+        <div>
+          <p class="text-xs font-medium" style="color: var(--text-muted);">{{ t('track.eta_label') }}</p>
+          <p class="text-sm font-semibold">{{ eta.low }} – {{ eta.high }}</p>
+        </div>
+        <span class="text-[11px]" style="color: var(--text-faint);">{{ t('track.eta_note') }}</span>
+      </div>
+      {% endif %}
+      {% endif %}
     </div>
 
     {# Parcel details #}
@@ -155,6 +222,20 @@
       </div>
       {% endif %}
     </div>
+    {% endif %}
+
+    {# Quick re-access QR: lets a customer screenshot/save this page's own
+       link, or hand it to someone else picking up the parcel, without
+       copying a long URL. Reuses qr_svg(), same helper the admin's order
+       detail page already uses. #}
+    {% if qr %}
+    <details class="card mt-4 p-4">
+      <summary class="flex cursor-pointer list-none items-center justify-between text-sm font-medium">
+        {{ t('track.qr_hint') }}
+        <span style="color: var(--text-faint2);">{{ icon('chevron-right') }}</span>
+      </summary>
+      <div class="mt-3 flex justify-center rounded-lg bg-white p-3">{{ qr|safe }}</div>
+    </details>
     {% endif %}
 
     {% if LINE_CONTACT %}

@@ -634,6 +634,17 @@ TRANSLATIONS = {
     "track.not_found_title": {"en": "Order not found", "th": "ไม่พบคำสั่งซื้อ"},
     "track.not_found_body": {"en": "Please check your tracking code and try again.", "th": "กรุณาตรวจสอบรหัสติดตามแล้วลองใหม่อีกครั้ง"},
     "track.not_found_home": {"en": "Go to homepage", "th": "กลับหน้าแรก"},
+    "track.lookup_cta": {"en": "Track an existing order", "th": "ติดตามคำสั่งซื้อที่มีอยู่"},
+    "track.lookup_title": {"en": "Find your order", "th": "ค้นหาคำสั่งซื้อของคุณ"},
+    "track.lookup_subtitle": {"en": "Enter the phone number you used when ordering.", "th": "กรอกเบอร์โทรที่คุณใช้ตอนสั่งซื้อ"},
+    "track.lookup_phone_label": {"en": "Phone number", "th": "เบอร์โทรศัพท์"},
+    "track.lookup_submit": {"en": "Find my orders", "th": "ค้นหาคำสั่งซื้อของฉัน"},
+    "track.lookup_invalid_phone": {"en": "Please enter a valid phone number.", "th": "กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง"},
+    "track.lookup_no_match": {"en": "We couldn't find any orders with that phone number.", "th": "เราไม่พบคำสั่งซื้อที่ใช้เบอร์โทรนี้"},
+    "track.lookup_results_title": {"en": "Your orders", "th": "คำสั่งซื้อของคุณ"},
+    "track.eta_label": {"en": "Estimated delivery", "th": "วันจัดส่งโดยประมาณ"},
+    "track.eta_note": {"en": "Estimate only, not a guarantee.", "th": "เป็นเพียงการประมาณการ ไม่ใช่การรับประกัน"},
+    "track.qr_hint": {"en": "Save or share this code", "th": "บันทึกหรือแชร์รหัสนี้"},
     "request.title": {"en": "Request an order", "th": "แจ้งความจำนงสั่งซื้อ"},
     "request.title_submitted": {"en": "Your order request", "th": "คำขอสั่งซื้อของคุณ"},
     "request.subtitle": {"en": "Tell us what you'd like to order and how to reach you — we'll take it from there.", "th": "บอกเราว่าอยากสั่งอะไรและติดต่อคุณได้ทางไหน ที่เหลือเราจัดการเอง"},
@@ -662,7 +673,7 @@ TRANSLATIONS = {
     "request.submit": {"en": "Submit request", "th": "ส่งคำขอ"},
     "request.save": {"en": "Save changes", "th": "บันทึกการแก้ไข"},
     "request.line_cta": {"en": "Message us on LINE", "th": "ทักแชท LINE"},
-    "request.line_hint": {"en": "Send your phone number on LINE and we'll link this to your chat automatically — no extra code needed.", "th": "ส่งเบอร์โทรของคุณทาง LINE แล้วเราจะเชื่อมกับแชทให้อัตโนมัติ ไม่ต้องใช้รหัสเพิ่ม"},
+    "request.line_hint": {"en": "Send your phone number on LINE so we can text you the moment your quote is ready — no extra code needed.", "th": "ส่งเบอร์โทรของคุณทาง LINE เพื่อให้เราแจ้งเตือนทันทีที่ใบเสนอราคาของคุณพร้อม ไม่ต้องใช้รหัสเพิ่ม"},
     "request.bookmark": {"en": "Bookmark this page to check back", "th": "บันทึกหน้านี้ไว้เพื่อกลับมาดูภายหลัง"},
     "request.quote_title": {"en": "Your quote", "th": "ใบเสนอราคาของคุณ"},
     "request.quote_item": {"en": "Item cost", "th": "ค่าสินค้า"},
@@ -770,6 +781,29 @@ def quote_status(item_cost, budget_text):
 
 app.jinja_env.globals["quote_status"] = quote_status
 app.jinja_env.globals["budget_number"] = _budget_number
+
+# Same day ranges already quoted to customers on /request and /terms --
+# reused here so /track can restate the estimate against the order's own
+# actual dates instead of only ever showing the generic range.
+DELIVERY_ESTIMATE_DAYS = {"รถ": (7, 14), "เรือ": (10, 30)}
+
+
+def estimated_delivery(order):
+    """{'low': ..., 'high': ...} formatted dates for an order's estimated
+    delivery window, or None when the mode isn't recognized or the order has
+    no creation date. Caller decides whether it still makes sense to show
+    (e.g. skip once the order is already delivered)."""
+    days = DELIVERY_ESTIMATE_DAYS.get(order["tracking_mode"])
+    if not days or not order["created_at"]:
+        return None
+    created = datetime.fromisoformat(order["created_at"])
+    return {
+        "low": (created + timedelta(days=days[0])).strftime("%d %b"),
+        "high": (created + timedelta(days=days[1])).strftime("%d %b"),
+    }
+
+
+app.jinja_env.globals["estimated_delivery"] = estimated_delivery
 
 
 def translate_url(text):
@@ -1043,6 +1077,14 @@ def _find_or_create_customer(name, phone, address):
     return cur.lastrowid
 
 
+def _customer_line_id(customer_id):
+    """line_user_id for a customer, or None if they're not linked (or don't
+    exist) -- shared by every place that needs to know whether a proactive
+    push is even possible before trying one."""
+    row = get_db().execute("SELECT line_user_id FROM customers WHERE id = ?", (customer_id,)).fetchone()
+    return row["line_user_id"] if row else None
+
+
 @app.route("/admin/orders/new", methods=["POST"])
 @login_required
 def new_order():
@@ -1072,6 +1114,14 @@ def new_order():
         (customer_id, mode, lot, agency_id, link_code, now, now),
     )
     db.commit()
+    line_id = _customer_line_id(customer_id)
+    if line_id:
+        track_url = f"{_public_base_url()}/track/{link_code}"
+        line_push(
+            line_id,
+            f"Your order has been created! Track it here: {track_url}\n"
+            f"สั่งซื้อของคุณถูกสร้างแล้ว! ติดตามได้ที่ลิงก์ด้านบน",
+        )
     flash(f"Order created. Customer tracking number: {link_code}")
     return redirect(url_for("orders_page"))
 
@@ -1389,6 +1439,14 @@ def requests_page():
             (order_id, now, req["id"]),
         )
         db.commit()
+        line_id = _customer_line_id(req["customer_id"])
+        if line_id:
+            track_url = f"{_public_base_url()}/track/{link_code}"
+            line_push(
+                line_id,
+                f"Your order is confirmed! Track it here: {track_url}\n"
+                f"คำสั่งซื้อของคุณได้รับการยืนยันแล้ว! ติดตามได้ที่ลิงก์ด้านบน",
+            )
         flash(f"Order created from request. Customer tracking number: {link_code}")
         return redirect(url_for("order_detail", order_id=order_id))
 
@@ -1410,16 +1468,33 @@ def quote_request(request_id):
     reaches the warehouse). Shown on both this queue and the customer's own
     /request/<code> revisit page."""
     db = get_db()
-    req = db.execute("SELECT id FROM order_requests WHERE id = ? AND status = 'new'", (request_id,)).fetchone()
+    req = db.execute(
+        "SELECT id, customer_id, request_code, budget FROM order_requests WHERE id = ? AND status = 'new'",
+        (request_id,),
+    ).fetchone()
     if req is None:
         flash("Request not found or already processed.")
         return redirect(url_for("requests_page"))
+    item_cost = _parse_money(request.form.get("item_cost"))
     db.execute(
         "UPDATE order_requests SET item_cost = ?, shipping_cost = ?, updated_at = ? WHERE id = ?",
-        (_parse_money(request.form.get("item_cost")), _parse_money(request.form.get("shipping_cost")),
+        (item_cost, _parse_money(request.form.get("shipping_cost")),
          datetime.utcnow().isoformat(), request_id),
     )
     db.commit()
+    line_id = _customer_line_id(req["customer_id"])
+    if line_id and item_cost is not None:
+        verdict = quote_status(item_cost, req["budget"])
+        verdict_text = {
+            "within_budget": "within your stated budget",
+            "over_budget": "above your stated budget — message us if you'd like to adjust anything",
+        }.get(verdict, "ready")
+        request_url = f"{_public_base_url()}/request/{req['request_code']}"
+        line_push(
+            line_id,
+            f"Your quote is ready — the item is {verdict_text}. View details: {request_url}\n"
+            f"ใบเสนอราคาของคุณพร้อมแล้ว ดูรายละเอียดได้ที่ลิงก์ด้านบน",
+        )
     flash("Quote saved.")
     return redirect(url_for("requests_page"))
 
@@ -1691,9 +1766,40 @@ def track(link_code):
     # link) -- only the internal agency/route stays hidden.
     china_no = order["china_tracking_no"]
     china_track_url = f"https://t.17track.net/en#nums={china_no}" if china_no else None
+    track_url = f"{_public_base_url()}/track/{order['link_code']}"
     return render_template(
         "track.html", order=order, stage_times=stage_times, china_track_url=china_track_url,
+        qr=qr_svg(track_url),
     )
+
+
+@app.route("/track", methods=["GET", "POST"])
+@limiter.limit("20 per hour")
+def track_lookup():
+    """Self-service phone-based lookup for a customer who lost their tracking
+    link/code -- the LINE bot already supports this (phone matching in the
+    webhook); the web had no equivalent, so a lost link was previously a
+    dead end unless the customer went and texted the bot instead."""
+    if request.method != "POST":
+        return render_template("track.html", order=None, lookup=True, lookup_results=None, lookup_error=None)
+
+    phone_norm = _normalize_phone(request.form.get("phone", ""))
+    if not phone_norm:
+        return render_template(
+            "track.html", order=None, lookup=True, lookup_results=None,
+            lookup_error=t("track.lookup_invalid_phone"),
+        )
+
+    db = get_db()
+    orders = db.execute(
+        "SELECT orders.link_code, orders.status, orders.created_at, orders.item_desc_en, orders.item_title_zh "
+        "FROM orders JOIN customers ON orders.customer_id = customers.id "
+        "WHERE customers.phone_normalized = ? ORDER BY orders.created_at DESC",
+        (phone_norm,),
+    ).fetchall()
+    if len(orders) == 1:
+        return redirect(url_for("track", link_code=orders[0]["link_code"]))
+    return render_template("track.html", order=None, lookup=True, lookup_results=orders, lookup_error=None)
 
 
 # ---------- Public order requests ----------

@@ -73,7 +73,10 @@
       <p class="mt-0.5 text-xs" style="color: var(--text-muted);">{{ t('landing.stat_since_label') }}</p>
     </div>
   </div>
-  <div class="reveal card flex items-center gap-3 p-3.5">
+  {% if LINE_CONTACT %}<a href="https://line.me/ti/p/~{{ LINE_CONTACT.lstrip('@') }}" target="_blank" rel="noopener noreferrer"
+     class="reveal card flex items-center gap-3 p-3.5 transition active:scale-[0.98]">
+  {% else %}<div class="reveal card flex items-center gap-3 p-3.5">
+  {% endif %}
     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style="background: rgba(6,199,85,0.12);">
       {{ icon('message-circle', 'h-5 w-5 text-[#06C755]') }}
     </span>
@@ -81,7 +84,11 @@
       <p class="text-sm font-bold">{{ t('landing.trust_line_title') }}</p>
       <p class="mt-0.5 text-xs" style="color: var(--text-muted);">{{ t('landing.trust_line_body') }}</p>
     </div>
-  </div>
+  {% if LINE_CONTACT %}</a>{% else %}</div>{% endif %}
+
+  <p class="reveal mt-4 text-center text-xs">
+    <a href="{{ url_for('track_lookup') }}" class="font-medium underline" style="color: var(--text-muted);">{{ t('track.lookup_cta') }}</a>
+  </p>
 </div>
 
 <div class="sticky bottom-0 px-4 pb-5 pt-3" style="background: linear-gradient(to top, var(--bg-page) 65%, transparent);">
