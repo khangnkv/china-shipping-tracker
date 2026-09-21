@@ -66,7 +66,7 @@
           <option value="เรือ">เรือ (ship)</option>
         </select>
       </div>
-      <div><label class="label" for="lot_{{ r.id }}">LOT number</label><input id="lot_{{ r.id }}" class="input" name="lot" type="number" placeholder="e.g. 11092" required></div>
+      <div><label class="label" for="lot_{{ r.id }}">LOT number <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label><input id="lot_{{ r.id }}" class="input" name="lot" type="number" placeholder="e.g. 11092"></div>
       <div><label class="label" for="agency_{{ r.id }}">Agency</label>
         <select id="agency_{{ r.id }}" class="input" name="agency_id">
           <option value="">— none —</option>
@@ -74,6 +74,13 @@
         </select>
       </div>
       <button type="submit" class="btn-primary">{{ icon('check-circle') }} Convert to order</button>
+    </form>
+
+    <form method="post" action="{{ url_for('delete_request', request_id=r.id) }}" class="mt-3 flex justify-end"
+          data-confirm="Delete request {{ r.request_code }} from {{ r.customer_name }}? This cannot be undone."
+          onsubmit="return window.confirm(this.dataset.confirm)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn text-xs" style="color: var(--danger-text);">{{ icon('trash-2') }} Delete request</button>
     </form>
   </div>
   {% endfor %}

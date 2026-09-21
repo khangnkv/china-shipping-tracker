@@ -12,7 +12,7 @@
     <h2 class="text-lg font-bold">{{ order.customer_name }}</h2>
     <p class="mt-0.5 text-sm" style="color: var(--text-faint);">
       Tracking no. <span class="font-mono font-medium" style="color: var(--text-secondary);">{{ order.link_code }}</span>
-      · Internal: {{ order.tracking_mode }} {{ order.tracking_lot }}
+      · Internal: {{ order.tracking_mode }} {{ order.tracking_lot if order.tracking_lot is not none else '-' }}
       · LINE: {% if order.line_user_id %}Linked{% else %}Not linked{% endif %}
     </p>
   </div>
@@ -69,11 +69,29 @@
     <input type="hidden" name="action" value="edit_customer">
     <input type="hidden" name="cust_source_blob" id="custSourceBlob">
     <div><label class="label" for="custName">Name</label><input id="custName" class="input" name="cust_name" value="{{ order.customer_name }}" required></div>
-    <div><label class="label" for="custPhone">Phone</label><input id="custPhone" class="input" name="cust_phone" value="{{ order.customer_phone or '' }}" required></div>
+    <div><label class="label" for="custPhone">Phone</label><input id="custPhone" class="input" name="cust_phone" value="{{ order.customer_phone or '' }}"></div>
     <div class="sm:col-span-2"><label class="label" for="custAddress">Address</label><input id="custAddress" class="input" name="cust_address" value="{{ order.customer_address or '' }}"></div>
     <div class="sm:col-span-2"><label class="label" for="custOtherContact">Other contact <span class="font-normal" style="color: var(--text-faint);">(LINE/email/FB)</span></label><input id="custOtherContact" class="input" name="cust_other_contact" value="{{ order.customer_other_contact or '' }}"></div>
-    <div class="sm:col-span-2"><button type="submit" class="btn-primary">{{ icon('check-circle') }} Save customer info</button></div>
+    <div class="sm:col-span-2">
+      <button type="submit" class="btn-primary">{{ icon('check-circle') }} Save customer info</button>
+      <span class="ml-2 text-xs" style="color: var(--text-faint);">Only the name is required — a blank field is cleared.</span>
+    </div>
   </form>
+
+  {# LINE binding -- lets an admin detach a wrong account (the customer, or the
+     right person, can then link again by sending a tracking number in LINE). #}
+  <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4" style="border-color: var(--border-soft);">
+    <p class="text-sm" style="color: var(--text-muted);">LINE: {% if order.line_user_id %}<span class="font-medium" style="color: var(--text-secondary);">Linked</span>{% else %}Not linked{% endif %}</p>
+    {% if order.line_user_id %}
+    <form method="post" action="{{ url_for('unlink_line', customer_id=order.customer_id) }}"
+          data-confirm="Unlink LINE from {{ order.customer_name }}? They will stop receiving LINE updates until they link again."
+          onsubmit="return window.confirm(this.dataset.confirm)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="order_id" value="{{ order.id }}">
+      <button type="submit" class="btn">Unlink LINE</button>
+    </form>
+    {% endif %}
+  </div>
 
   {# Hidden source the "Copy all info" button reads from -- kept accurate
      via Jinja on every render, not JS, so it's right even before any edits. #}
@@ -84,7 +102,7 @@
       "Address: " ~ (order.customer_address or "—"),
       "Other contact: " ~ (order.customer_other_contact or "—"),
       "Item: " ~ (order.item_desc_en or order.item_title_zh or "—"),
-      "Mode/LOT: " ~ order.tracking_mode ~ " " ~ order.tracking_lot,
+      "Mode/LOT: " ~ order.tracking_mode ~ " " ~ (order.tracking_lot if order.tracking_lot is not none else "-"),
     ] | join("\n") }}</textarea>
 </section>
 
@@ -109,8 +127,8 @@
         </select>
       </div>
       <div>
-        <label class="label" for="trackingLot">LOT number</label>
-        <input id="trackingLot" class="input" name="tracking_lot" type="number" value="{{ order.tracking_lot }}">
+        <label class="label" for="trackingLot">LOT number <span class="font-normal" style="color: var(--text-faint);">(optional)</span></label>
+        <input id="trackingLot" class="input" name="tracking_lot" type="number" value="{{ order.tracking_lot if order.tracking_lot is not none else '' }}">
       </div>
     </div>
     <div class="mt-4">
@@ -199,6 +217,27 @@
       <a href="{{ track_url }}" target="_blank" class="break-all text-sm font-medium text-blue-600 hover:underline">{{ track_url }}</a>
       <p class="mt-2 text-xs" style="color: var(--text-faint);">Customer tracking number: <span class="font-mono font-medium" style="color: var(--text-secondary);">{{ order.link_code }}</span></p>
     </div>
+  </div>
+</section>
+
+{# Danger zone -- for faulty records only. Both are permanent; each has its own
+   confirm, and the customer one spells out exactly what it cascades to. #}
+<section class="card mt-5 p-5" style="border-color: var(--danger-dot);">
+  <h3 class="mb-1 text-sm font-semibold" style="color: var(--danger-text);">Danger zone</h3>
+  <p class="mb-4 text-xs" style="color: var(--text-faint);">Deleting is permanent. Use it to remove a faulty record, not to close a finished order.</p>
+  <div class="flex flex-wrap gap-3">
+    <form method="post" action="{{ url_for('delete_order', order_id=order.id) }}"
+          data-confirm="Delete order {{ order.link_code }} for {{ order.customer_name }}? Its status history and uploaded image are deleted too. This cannot be undone."
+          onsubmit="return window.confirm(this.dataset.confirm)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn" style="color: var(--danger-text);">{{ icon('trash-2') }} Delete this order</button>
+    </form>
+    <form method="post" action="{{ url_for('delete_customer', customer_id=order.customer_id) }}"
+          data-confirm="Permanently delete customer {{ order.customer_name }} and ALL their data: {{ cust_counts.orders }} order(s), {{ cust_counts.order_requests }} request(s) and {{ cust_counts.messages }} LINE message(s)? This cannot be undone."
+          onsubmit="return window.confirm(this.dataset.confirm)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn" style="color: var(--danger-text);">{{ icon('trash-2') }} Delete customer &amp; all {{ cust_counts.orders }} order(s)</button>
+    </form>
   </div>
 </section>
 

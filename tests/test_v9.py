@@ -126,7 +126,9 @@ def test_order_detail_customer_edit_updates_customer_row(app_module, client):
     assert cust["address"] == "New Address"
 
 
-def test_order_detail_customer_edit_blank_address_does_not_erase(app_module, client):
+def test_order_detail_customer_edit_blank_address_clears(app_module, client):
+    """Admin edit is deliberate: a blank field CLEARS it (the public intake
+    paths, tested above, are the ones that never erase a stored value)."""
     login(client)
     client.post("/admin/orders/new", data={"name": "Keep Addr", "phone": "0855555555", "address": "Keep This", "mode": "รถ", "lot": "70003"}, follow_redirects=True)
     with app_module.app.app_context():
@@ -139,7 +141,7 @@ def test_order_detail_customer_edit_blank_address_does_not_erase(app_module, cli
     )
     with app_module.app.app_context():
         cust = app_module.get_db().execute("SELECT address FROM customers WHERE id = ?", (order["customer_id"],)).fetchone()
-    assert cust["address"] == "Keep This"
+    assert cust["address"] is None
 
 
 def test_order_detail_shows_copy_all_button_and_customer_fields(app_module, client):

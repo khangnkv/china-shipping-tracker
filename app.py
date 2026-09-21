@@ -226,7 +226,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             customer_id INTEGER NOT NULL,
             tracking_mode TEXT NOT NULL,      -- 'รถ' or 'เรือ'
-            tracking_lot INTEGER NOT NULL,
+            tracking_lot INTEGER,             -- optional: often not known when the order is created
             tracking_sub TEXT,                -- e.g. '18' from 11092/18, informational only
             status TEXT NOT NULL DEFAULT 'pending',  -- pending / arrived_awaiting_info / info_submitted / shipped
             shipping_info TEXT,
@@ -332,6 +332,7 @@ def init_db():
         "budget TEXT", "other_contact TEXT", "item_cost REAL", "shipping_cost REAL",
         "reference_image TEXT", "terms_agreed_at TEXT",
     ])
+    _migrate_orders_lot_nullable(db)
 
     # Backfill phone_normalized for any rows that predate the column.
     for row in db.execute(
@@ -365,6 +366,57 @@ def _add_columns(db, table, cols):  # cols: ["name TYPE", ...]
     for col in cols:
         if col.split()[0] not in existing:
             db.execute(f"ALTER TABLE {table} ADD COLUMN {col}")
+
+
+def _migrate_orders_lot_nullable(db):
+    """LOT is optional now, but an existing tracker.db still has
+    orders.tracking_lot NOT NULL and SQLite can't drop a NOT NULL in place --
+    so rebuild the table (SQLite's documented create-new / copy / drop /
+    rename recipe). The new DDL is derived from the table's own stored SQL
+    with only that one constraint removed, so every column added later via
+    _add_columns(), the link_code UNIQUE and the FK to customers(id) carry
+    over untouched. A no-op once tracking_lot is nullable, so it's safe on
+    every start."""
+    info = {r[1]: r for r in db.execute("PRAGMA table_info(orders)")}
+    if "tracking_lot" not in info or not info["tracking_lot"][3]:  # [3] = notnull
+        return
+
+    old_sql = db.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'orders'").fetchone()[0]
+    new_sql = re.sub(r"(tracking_lot\s+INTEGER)\s+NOT\s+NULL", r"\1", old_sql, count=1, flags=re.I)
+    new_sql = re.sub(r'^\s*CREATE\s+TABLE\s+"?orders"?', "CREATE TABLE orders_new", new_sql, count=1, flags=re.I)
+    if new_sql == old_sql or "orders_new" not in new_sql:
+        logger.error("orders.tracking_lot migration skipped: unrecognised orders DDL: %s", old_sql)
+        return
+
+    cols = ", ".join(f'"{name}"' for name in info)
+    extras = [r[0] for r in db.execute(
+        "SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = 'orders' AND sql IS NOT NULL"
+    )]
+    seq = db.execute("SELECT seq FROM sqlite_sequence WHERE name = 'orders'").fetchone()
+
+    fk_was_on = db.execute("PRAGMA foreign_keys").fetchone()[0]
+    db.commit()  # PRAGMA foreign_keys is silently ignored inside an open transaction
+    db.execute("PRAGMA foreign_keys = OFF")
+    try:
+        db.execute("BEGIN")
+        db.execute("DROP TABLE IF EXISTS orders_new")
+        db.execute(new_sql)
+        db.execute(f"INSERT INTO orders_new ({cols}) SELECT {cols} FROM orders")
+        db.execute("DROP TABLE orders")
+        db.execute("ALTER TABLE orders_new RENAME TO orders")
+        for sql in extras:
+            db.execute(sql)
+        if seq is not None:  # keep AUTOINCREMENT from re-issuing ids of since-deleted orders
+            if not db.execute("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = 'orders'", (seq[0],)).rowcount:
+                db.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('orders', ?)", (seq[0],))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        if fk_was_on:
+            db.execute("PRAGMA foreign_keys = ON")
+    logger.info("Migrated orders.tracking_lot to nullable (%d columns preserved)", len(info))
 
 
 init_db()  # idempotent; must run regardless of entrypoint (dev server, flask run, gunicorn)
@@ -437,6 +489,8 @@ def apply_matching(lot_data):
     for order in open_orders:
         mode = order["tracking_mode"]
         lot = order["tracking_lot"]
+        if lot is None:  # LOT not known yet -- nothing to match against
+            continue
         found = lot in lot_data.get(mode, set())
         if found:
             now = datetime.utcnow().isoformat()
@@ -1185,10 +1239,10 @@ def new_order():
     lot_raw = request.form.get("lot", "").strip()
     agency_id = request.form.get("agency_id", "").strip() or None
 
-    if not name or mode not in VALID_MODES or not lot_raw.isdigit():
-        flash("Please fill in a valid customer name, mode, and numeric LOT number.")
+    if not name or mode not in VALID_MODES or (lot_raw and not lot_raw.isdigit()):
+        flash("Please fill in a valid customer name, mode, and numeric LOT number (or leave LOT blank).")
         return redirect(url_for("orders_page"))
-    lot = int(lot_raw)
+    lot = int(lot_raw) if lot_raw else None
 
     db = get_db()
     now = datetime.utcnow().isoformat()
@@ -1281,21 +1335,20 @@ def order_detail(order_id):
         # branch) -- deliberately NOT routed through _find_or_create_customer()'s
         # phone-matching, which is for deciding whether a NEW submission
         # belongs to an existing customer, not for correcting one you already
-        # know. A blank address/other_contact here never erases a
-        # previously-good value (same non-destructive-update fix as Bug B).
+        # know. Unlike the public intake paths (which never let a blank erase
+        # a good value), a blank phone/address/other_contact here is the admin
+        # deliberately CLEARING that field -- only the name must stay non-blank.
         if request.form.get("action") == "edit_customer":
             cust_name = request.form.get("cust_name", "").strip()
-            cust_phone = request.form.get("cust_phone", "").strip()
-            cust_address = request.form.get("cust_address", "").strip()
-            cust_other_contact = request.form.get("cust_other_contact", "").strip()
-            if not cust_name or not cust_phone:
-                flash("Customer name and phone are required.")
+            cust_phone = request.form.get("cust_phone", "").strip() or None
+            cust_address = request.form.get("cust_address", "").strip() or None
+            cust_other_contact = request.form.get("cust_other_contact", "").strip() or None
+            if not cust_name:
+                flash("Customer name is required.")
                 return redirect(url_for("order_detail", order_id=order_id))
-            new_address = cust_address if cust_address else (order["customer_address"] or None)
-            new_contact = cust_other_contact if cust_other_contact else (order["customer_other_contact"] or None)
             db.execute(
                 "UPDATE customers SET name = ?, phone = ?, phone_normalized = ?, address = ?, other_contact = ? WHERE id = ?",
-                (cust_name, cust_phone, _normalize_phone(cust_phone), new_address, new_contact, order["customer_id"]),
+                (cust_name, cust_phone, _normalize_phone(cust_phone), cust_address, cust_other_contact, order["customer_id"]),
             )
             _record_info_source(order["customer_id"], request.form.get("cust_source_blob", ""), cust_phone)
             db.commit()
@@ -1336,7 +1389,7 @@ def order_detail(order_id):
                 return redirect(url_for("order_detail", order_id=order_id))
             tracking_lot = int(tracking_lot_raw)
         else:
-            tracking_lot = order["tracking_lot"]
+            tracking_lot = None  # blank clears it -- LOT is optional
 
         # Auto-translate only when the Chinese title changed and no manual EN/TH
         # override was typed this submit -- never blocks the save if it fails.
@@ -1393,9 +1446,14 @@ def order_detail(order_id):
     track_url = f"{base}/track/{order['link_code']}"
     china_no = order["china_tracking_no"]
     china_track_url = f"https://t.17track.net/en#nums={china_no}" if china_no else None
+    # What "Delete customer" would take with it, for its confirm prompt.
+    cust_counts = {
+        table: db.execute(f"SELECT COUNT(*) FROM {table} WHERE customer_id = ?", (order["customer_id"],)).fetchone()[0]
+        for table in ("orders", "order_requests", "messages")
+    }
     return render_template(
         "order_detail.html", order=order, track_url=track_url, qr=qr_svg(track_url),
-        agencies=active_agencies(), china_track_url=china_track_url,
+        agencies=active_agencies(), china_track_url=china_track_url, cust_counts=cust_counts,
     )
 
 
@@ -1443,6 +1501,72 @@ def fetch_image(order_id):
     except requests.RequestException:
         flash("Couldn't reach that link (site may block bots) — paste or drag an image instead.")
     return redirect(url_for("order_detail", order_id=order_id))
+
+
+def _delete_order(db, order_id, link_code):
+    """Remove one order completely: its status_log rows, the row itself (any
+    request that was converted into it stops pointing at it), and its
+    uploaded image files. Doesn't commit -- the caller does, so the customer
+    cascade below can delete many orders in a single transaction."""
+    db.execute("DELETE FROM status_log WHERE order_id = ?", (order_id,))
+    db.execute("UPDATE order_requests SET converted_order_id = NULL WHERE converted_order_id = ?", (order_id,))
+    db.execute("DELETE FROM orders WHERE id = ?", (order_id,))
+    _clear_old_images(link_code)
+
+
+@app.route("/admin/orders/<int:order_id>/delete", methods=["POST"])
+@login_required
+def delete_order(order_id):
+    db = get_db()
+    order = db.execute("SELECT id, link_code FROM orders WHERE id = ?", (order_id,)).fetchone()
+    if order is None:
+        flash("Order not found.")
+        return redirect(url_for("orders_page"))
+    _delete_order(db, order["id"], order["link_code"])
+    db.commit()
+    flash(f"Order {order['link_code']} deleted.")
+    return redirect(url_for("orders_page"))
+
+
+@app.route("/admin/customers/<int:customer_id>/delete", methods=["POST"])
+@login_required
+def delete_customer(customer_id):
+    """Destructive cascade for a faulty customer record: all their orders (via
+    _delete_order, so status_log + image files go too), their requests, and
+    their LINE message history, then the customer row itself."""
+    db = get_db()
+    customer = db.execute("SELECT id, name FROM customers WHERE id = ?", (customer_id,)).fetchone()
+    if customer is None:
+        flash("Customer not found.")
+        return redirect(url_for("orders_page"))
+    orders = db.execute("SELECT id, link_code FROM orders WHERE customer_id = ?", (customer_id,)).fetchall()
+    for o in orders:
+        _delete_order(db, o["id"], o["link_code"])
+    for r in db.execute("SELECT request_code FROM order_requests WHERE customer_id = ?", (customer_id,)).fetchall():
+        _clear_old_images(f"req_{r['request_code']}")  # their orders are gone too, so nothing else uses it
+    db.execute("DELETE FROM order_requests WHERE customer_id = ?", (customer_id,))
+    db.execute("DELETE FROM messages WHERE customer_id = ?", (customer_id,))
+    db.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
+    db.commit()
+    flash(f"Customer “{customer['name']}” and {len(orders)} order(s) deleted.")
+    return redirect(url_for("orders_page"))
+
+
+@app.route("/admin/customers/<int:customer_id>/unlink-line", methods=["POST"])
+@login_required
+def unlink_line(customer_id):
+    """Detach a wrongly-bound LINE account so the right one can link again
+    (by sending a tracking number in LINE)."""
+    db = get_db()
+    customer = db.execute("SELECT id, name FROM customers WHERE id = ?", (customer_id,)).fetchone()
+    if customer is None:
+        flash("Customer not found.")
+        return redirect(url_for("orders_page"))
+    db.execute("UPDATE customers SET line_user_id = NULL WHERE id = ?", (customer_id,))
+    db.commit()
+    flash(f"LINE unlinked from {customer['name']}.")
+    order_id = request.form.get("order_id", type=int)
+    return redirect(url_for("order_detail", order_id=order_id) if order_id else url_for("orders_page"))
 
 
 @app.route("/admin/agencies", methods=["GET", "POST"])
@@ -1541,8 +1665,8 @@ def requests_page():
         mode = request.form.get("mode", "").strip()
         lot_raw = request.form.get("lot", "").strip()
         agency_id = request.form.get("agency_id", "").strip() or None
-        if mode not in VALID_MODES or not lot_raw.isdigit():
-            flash("Please pick a valid mode and numeric LOT number.")
+        if mode not in VALID_MODES or (lot_raw and not lot_raw.isdigit()):
+            flash("Please pick a valid mode and a numeric LOT number (or leave LOT blank).")
             return redirect(url_for("requests_page"))
 
         now = datetime.utcnow().isoformat()
@@ -1563,7 +1687,7 @@ def requests_page():
             "link_code, source_link, item_desc_en, item_image, item_cost, house_ship_fee, "
             "created_at, updated_at) "
             "VALUES (?, ?, ?, ?, 'ordered', ?, ?, ?, ?, ?, ?, ?, ?)",
-            (req["customer_id"], mode, int(lot_raw), agency_id, link_code,
+            (req["customer_id"], mode, int(lot_raw) if lot_raw else None, agency_id, link_code,
              req["source_link"], req["item_description"], req["reference_image"],
              req["item_cost"], req["shipping_cost"], now, now),
         )
@@ -1633,6 +1757,25 @@ def quote_request(request_id):
             f"ใบเสนอราคาของคุณพร้อมแล้ว ดูรายละเอียดได้ที่ลิงก์ด้านบน",
         )
     flash("Quote saved.")
+    return redirect(url_for("requests_page"))
+
+
+@app.route("/admin/requests/<int:request_id>/delete", methods=["POST"])
+@login_required
+def delete_request(request_id):
+    """Delete a faulty request outright (new or already converted). A converted
+    request's reference photo is left alone -- the order created from it still
+    uses that file."""
+    db = get_db()
+    req = db.execute("SELECT id, request_code, status FROM order_requests WHERE id = ?", (request_id,)).fetchone()
+    if req is None:
+        flash("Request not found.")
+        return redirect(url_for("requests_page"))
+    db.execute("DELETE FROM order_requests WHERE id = ?", (request_id,))
+    db.commit()
+    if req["status"] == "new":
+        _clear_old_images(f"req_{req['request_code']}")
+    flash(f"Request {req['request_code']} deleted.")
     return redirect(url_for("requests_page"))
 
 
@@ -2096,8 +2239,14 @@ def view_request(request_code):
     if req is None:
         return render_template("request.html", request_row=None, values=None, not_found=True), 404
 
+    # This page is public (the request code is the customer's only credential),
+    # but an admin who is logged in edits through it too. Only the admin gets
+    # the field-clearing and stays able to edit after conversion; a customer
+    # keeps the original locked / never-erase-a-good-value behaviour.
+    is_admin = bool(session.get("logged_in"))
+
     if request.method == "POST":
-        if req["status"] != "new":
+        if req["status"] != "new" and not is_admin:
             flash("This request has already been processed and can no longer be edited.")
             return redirect(url_for("view_request", request_code=request_code))
         name = request.form.get("name", "").strip()
@@ -2107,19 +2256,32 @@ def view_request(request_code):
         source_link = request.form.get("source_link", "").strip()
         budget = request.form.get("budget", "").strip()
         other_contact = request.form.get("other_contact", "").strip()
-        if not name or not phone or not item_description:
-            flash("Please fill in your name, phone number, and what you'd like to order.")
-            return redirect(url_for("view_request", request_code=request_code))
+
+        if is_admin:
+            # A blank submitted field is the admin deliberately CLEARING it
+            # (NULL); only the name must stay non-blank.
+            if not name:
+                flash("Name is required.")
+                return redirect(url_for("view_request", request_code=request_code))
+            phone = phone or None
+            new_address = address or None
+            new_contact = other_contact or None
+            item_description = item_description or None
+            source_link = source_link or None
+        else:
+            if not name or not phone or not item_description:
+                flash("Please fill in your name, phone number, and what you'd like to order.")
+                return redirect(url_for("view_request", request_code=request_code))
+            # A blank address/other_contact here must never erase a previously-good
+            # value (same fix as _find_or_create_customer()) -- fall back to what's
+            # already on file rather than nulling it out.
+            current = db.execute(
+                "SELECT address, other_contact FROM customers WHERE id = ?", (req["customer_id"],)
+            ).fetchone()
+            new_address = address if address else (current["address"] or None)
+            new_contact = other_contact if other_contact else (current["other_contact"] or None)
 
         now = datetime.utcnow().isoformat()
-        # A blank address/other_contact here must never erase a previously-good
-        # value (same fix as _find_or_create_customer()) -- fall back to what's
-        # already on file rather than nulling it out.
-        current = db.execute(
-            "SELECT address, other_contact FROM customers WHERE id = ?", (req["customer_id"],)
-        ).fetchone()
-        new_address = address if address else (current["address"] or None)
-        new_contact = other_contact if other_contact else (current["other_contact"] or None)
         db.execute(
             "UPDATE customers SET name = ?, phone = ?, phone_normalized = ?, address = ?, other_contact = ? WHERE id = ?",
             (name, phone, _normalize_phone(phone), new_address, new_contact, req["customer_id"]),
@@ -2134,7 +2296,7 @@ def view_request(request_code):
         return redirect(url_for("view_request", request_code=request_code))
 
     values = {
-        "name": req["customer_name"], "phone": req["customer_phone"], "address": req["customer_address"] or "",
+        "name": req["customer_name"], "phone": req["customer_phone"] or "", "address": req["customer_address"] or "",
         "item_description": req["item_description"] or "", "source_link": req["source_link"] or "",
         "budget": req["budget"] or "", "other_contact": req["other_contact"] or "",
     }
